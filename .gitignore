@@ -1,0 +1,8 @@
+Unity/
+Delivery/
+ModelosWeb/
+Pages/
+node_modules/
+*.log
+.env*
+
