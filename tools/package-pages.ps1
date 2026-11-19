@@ -2,6 +2,7 @@ param([Parameter(Mandatory=$true)][string]$CopyRoot,[Parameter(Mandatory=$true)]
 $ErrorActionPreference='Stop'
 $src=Join-Path $CopyRoot 'Delivery'
 $catalog=Get-Content -Raw -LiteralPath (Join-Path $src 'actividades.json') | ConvertFrom-Json
+$bundles=(Get-Content -Raw -LiteralPath (Join-Path $src 'bundles.json') | ConvertFrom-Json).names
 if($catalog.names.Count -ne 18){throw 'Catálogo incompleto'}
 $levels=@(Get-ChildItem -LiteralPath "$src/Content" -Filter 'nivel-*' -File | Where-Object Extension -ne '.manifest')
 if($levels.Count -ne 18){throw 'Faltan paquetes de escenas'}
@@ -14,7 +15,7 @@ foreach($dir in @('Build','Media','StreamingAssets','Content')){
     $target=Join-Path $Destination $dir
     New-Item -ItemType Directory -Path $target | Out-Null
     if($dir -eq 'Content'){
-        Get-ChildItem -LiteralPath "$src/$dir" -File | Where-Object {$_.Extension -ne '.manifest' -and $_.Name -ne 'Content'} | Copy-Item -Destination $target
+        foreach($name in $bundles){Copy-Item -LiteralPath "$src/$dir/$name" -Destination $target}
     }else{Get-ChildItem -LiteralPath "$src/$dir" | Copy-Item -Destination $target -Recurse}
 }
 New-Item -ItemType File -Path "$Destination/.nojekyll" | Out-Null

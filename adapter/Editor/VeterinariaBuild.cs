@@ -51,15 +51,34 @@ public static class VeterinariaBuild {
             levels.Add(new AssetBundleBuild{assetBundleName="nivel-"+i,assetNames=new[]{path}});
         }
         AssetDatabase.SaveAssets();
-        // Put multiply-used geometry, audio, prefabs and materials in shared bundles by GUID.
-        // Individual heavyweight imports get independent requests instead of duplicating them across levels.
-        var owners=levels.SelectMany(l=>AssetDatabase.GetDependencies(l.assetNames,true).Distinct())
-            .Where(p=>p.StartsWith("Assets/") && File.Exists(p) && !p.StartsWith(Generated+"/")
-                && !new[]{".cs",".dll",".unity",".asmdef",".cginc",".hlsl",".jslib"}.Contains(Path.GetExtension(p).ToLowerInvariant()))
-            .GroupBy(p=>p).Where(g=>g.Count()>1).Select(g=>g.Key).OrderBy(p=>p).ToArray();
-        var shared=owners.GroupBy(p=>new FileInfo(p).Length>=4*1024*1024?"modelo-"+AssetDatabase.AssetPathToGUID(p):
-            "comun-"+AssetDatabase.AssetPathToGUID(p).Substring(0,2)).Select(g=>
-            new AssetBundleBuild{assetBundleName=g.Key,assetNames=g.ToArray()});
+        // Only pack assets together if exactly the same activities use them. This
+        // prevents the menu from indirectly downloading resources for later practices.
+        var usage=new Dictionary<string,int>();
+        var excluded=new HashSet<string>(StringComparer.OrdinalIgnoreCase){".cs",".dll",".unity",".asmdef",".cginc",".hlsl",".jslib"};
+        for(int i=0;i<levels.Count;i++){
+            foreach(string path in AssetDatabase.GetDependencies(levels[i].assetNames,true)){
+                if(!path.StartsWith("Assets/") || !File.Exists(path) || excluded.Contains(Path.GetExtension(path)))continue;
+                usage.TryGetValue(path,out int mask);
+                usage[path]=mask | (1<<i);
+            }
+        }
+        var shared=new List<AssetBundleBuild>();
+        foreach(var group in usage.GroupBy(x=>x.Value).OrderBy(g=>g.Key)){
+            var batch=new List<string>();long bytes=0;int part=0;
+            void Flush(){
+                if(batch.Count==0)return;
+                shared.Add(new AssetBundleBuild{assetBundleName=$"rec-{group.Key:x}-{part++}",assetNames=batch.ToArray()});
+                batch.Clear();bytes=0;
+            }
+            foreach(var entry in group.OrderBy(x=>x.Key,StringComparer.Ordinal)){
+                long size=new FileInfo(entry.Key).Length;
+                bool unique=(group.Key & (group.Key-1))==0;
+                if(unique && size<4*1024*1024)continue;
+                if(bytes+size>12*1024*1024)Flush();
+                batch.Add(entry.Key);bytes+=size;
+            }
+            Flush();
+        }
         var dependencies=AssetDatabase.GetDependencies(levels.SelectMany(l=>l.assetNames).ToArray(),true);
         foreach(string path in dependencies){
             if(!path.StartsWith("Assets/") || !(AssetImporter.GetAtPath(path) is TextureImporter tex))continue;
@@ -73,6 +92,7 @@ public static class VeterinariaBuild {
         var manifest=BuildPipeline.BuildAssetBundles(Content,levels.Concat(shared).ToArray(),
             BuildAssetBundleOptions.ChunkBasedCompression|BuildAssetBundleOptions.StrictMode,BuildTarget.WebGL);
         if(!manifest)throw new Exception("Falló la compilación de recursos por escena.");
+        File.WriteAllText(Path.Combine(Out,"bundles.json"),JsonUtility.ToJson(new Catalog{names=manifest.GetAllAssetBundles()}));
         var gates=new List<string>();
         foreach(var level in levels){
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene);

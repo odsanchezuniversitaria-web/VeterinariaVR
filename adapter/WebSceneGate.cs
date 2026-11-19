@@ -23,21 +23,34 @@ public sealed class WebSceneGate : MonoBehaviour
             resident[old].Unload(true);
             resident.Remove(old);
         }
-        for (int i = 0; i <= dependencies.Length; i++) {
-            string name = i == dependencies.Length ? sceneBundle : dependencies[i];
-            if (resident.ContainsKey(name)) continue;
-            using (var request = UnityWebRequestAssetBundle.GetAssetBundle(FileUrl("Content/" + name), Hash128.Parse(versions[i]))) {
-                yield return request.SendWebRequest();
-                if (request.result != UnityWebRequest.Result.Success) {
-                    status = "No se pudo descargar " + name + ". " + request.error; failed = true; yield break;
+        var names=new List<string>(dependencies){sceneBundle};
+        var pending=new Dictionary<string,UnityWebRequest>();
+        int next=0;
+        try {
+            while(next<names.Count || pending.Count>0){
+                while(next<names.Count && pending.Count<4){
+                    int i=next++;
+                    if(resident.ContainsKey(names[i]))continue;
+                    var req=UnityWebRequestAssetBundle.GetAssetBundle(FileUrl("Content/"+names[i]),Hash128.Parse(versions[i]));
+                    pending.Add(names[i],req);req.SendWebRequest();
                 }
-                var bundle = DownloadHandlerAssetBundle.GetContent(request);
-                if (!bundle) { status = "Archivo de actividad incompleto"; failed = true; yield break; }
-                resident.Add(name, bundle);
+                yield return null;
+                foreach(string name in new List<string>(pending.Keys)){
+                    var req=pending[name];
+                    if(!req.isDone)continue;
+                    var asset=req.result==UnityWebRequest.Result.Success?DownloadHandlerAssetBundle.GetContent(req):null;
+                    if(!asset){status="No se pudo abrir "+name+". "+req.error;failed=true;yield break;}
+                    resident.Add(name,asset);
+                    req.Dispose();pending.Remove(name);
+                }
+                status="Cargando "+System.IO.Path.GetFileNameWithoutExtension(scenePath)+" · "+(next-pending.Count)+"/"+names.Count;
             }
+        } finally {
+            foreach(var req in pending.Values)req.Dispose();
         }
-        // Use the full path, distinct from the small scene with the same basename.
-        yield return SceneManager.LoadSceneAsync(scenePath, LoadSceneMode.Single);
+        var paths=resident[sceneBundle].GetAllScenePaths();
+        if(paths.Length!=1){status="Paquete de escena incompleto";failed=true;yield break;}
+        yield return SceneManager.LoadSceneAsync(paths[0], LoadSceneMode.Single);
     }
     void OnGUI() {
         GUI.Box(new Rect(15,15, Mathf.Min(520, Screen.width-30),40), status);

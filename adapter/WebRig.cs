@@ -43,8 +43,11 @@ public sealed class WebRig : MonoBehaviour {
             }
         }
     }
-    public void ActionA() { WebLegacyInput.TapA(); }
-    public void ActionB() { WebLegacyInput.TapB(); }
+    public void ActionA() { WebLegacyInput.Tap(OVRInput.Button.One); }
+    public void ActionB() { WebLegacyInput.Tap(OVRInput.Button.Two); }
+    public void ActionX() { WebLegacyInput.Tap(OVRInput.Button.Three); }
+    public void ActionY() { WebLegacyInput.Tap(OVRInput.Button.Four); }
+    public void ActionMenu() { WebLegacyInput.Tap(OVRInput.Button.Start); }
     public void SwapHand() { WebLegacyInput.useLeft=!WebLegacyInput.useLeft; }
     public void TogglePause() { FindFirstObjectByType<OseoVR.Boxeo.PausaBoxeo>()?.Alternar(); }
 

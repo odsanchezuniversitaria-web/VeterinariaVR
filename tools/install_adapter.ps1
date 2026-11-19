@@ -42,7 +42,7 @@ if(!$text.Contains('public string urlPrincipal;')){
     }
     [IO.File]::WriteAllText($file,$text,[Text.UTF8Encoding]::new($false))
 }
-foreach($rel in @('CuerdaFisica.cs','DetectarAgarre.cs','PuntoSuturaSimple.cs','PuntoSuturaPiel.cs','Huesos 3D/Quirofano/PerroCirugia/TesticleExtractionSystem.cs','Scripts/Boxeo/PausaBoxeo.cs','Scripts/Laminitis/LetreroToggle.cs','Scripts/Laminitis/SecuenciaLaminitisManual.cs')){
+foreach($rel in @('CuerdaFisica.cs','DetectarAgarre.cs','PuntoSuturaSimple.cs','PuntoSuturaPiel.cs','ControladorJuego.cs','MaquinaGasa.cs','MaquinaRasurar.cs','HuesoInteractivo.cs','PerillaMicroscopioMeta.cs','SecuenciaNudos.cs','SistemaSuturaPiel.cs','SutureTrigger.cs','Scripts/Cirugia/RetroalimentacionCirugia.cs','Huesos 3D/Quirofano/PerroCirugia/TesticleExtractionSystem.cs','Scripts/Boxeo/PausaBoxeo.cs','Scripts/Laminitis/LetreroToggle.cs','Scripts/Laminitis/SecuenciaLaminitisManual.cs')){
     $file=Join-Path "$unity/Assets" $rel
     $old=[IO.File]::ReadAllText($file)
     $new=$old -replace 'OVRInput\.(GetDown|Get|GetLocalControllerPosition|SetControllerVibration)\(', 'WebLegacyInput.$1('
@@ -52,4 +52,17 @@ $net=Join-Path $unity 'Assets/Scripts/Multijugador/ConectorMultijugador.cs'
 $old=[IO.File]::ReadAllText($net)
 $new=$old.Replace('soporte.AddComponent<NetworkSceneManagerDefault>()','soporte.AddComponent<WebNetworkScenes>()').Replace('SceneRef.FromIndex(escenaActual.buildIndex)','gestorEscena.GetSceneRef(escenaActual.path)')
 if($new -cne $old){[IO.File]::WriteAllText($net,$new,[Text.UTF8Encoding]::new($false))}
+foreach($change in @(
+    @('MostrarPanelConBotonX.cs','if (dispositivoIzquierdo.TryGetFeatureValue(CommonUsages.primaryButton, out bool xPresionado))','bool xPresionado = WebLegacyInput.GetDown(OVRInput.Button.Three); if (WebLegacyInput.rig || dispositivoIzquierdo.TryGetFeatureValue(CommonUsages.primaryButton, out xPresionado))'),
+    @('OcultarPanelLetra.cs','bool botonActualmentePresionado = EstaBotonPresionado(dispositivo);','bool botonActualmentePresionado = WebLegacyInput.rig ? WebLegacyInput.ReadPanelButton(manoAUsar, botonAUsar) : EstaBotonPresionado(dispositivo);'),
+    @('ApareceObjPanel.cs','bool pulsado = false;','bool pulsado = WebLegacyInput.GetDown(OVRInput.Button.Four) || WebLegacyInput.GetDown(OVRInput.Button.Two);'),
+    @('Scripts/Multijugador/InterruptorMultijugador.cs','if (Input.GetKey(TECLA_PRUEBA)) ahora = true;','if (Input.GetKey(TECLA_PRUEBA) || WebLegacyInput.GetDown(OVRInput.Button.Start)) ahora = true;'),
+    @('Scripts/Multijugador/PoseManoLocal.cs','if (_rig == null) _rig = Object.FindAnyObjectByType<OVRCameraRig>();','if (WebLegacyInput.rig) { var hand = _izquierda ? WebLegacyInput.rig.originalLeft : WebLegacyInput.rig.originalRight; if (hand) { pose = new Pose(hand.position, hand.rotation); return true; } } if (_rig == null) _rig = Object.FindAnyObjectByType<OVRCameraRig>();')
+)){
+    $file=Join-Path "$unity/Assets" $change[0]
+    $old=[IO.File]::ReadAllText($file)
+    if($old.Contains($change[2])){continue}
+    if(!$old.Contains($change[1])){throw "Entrada de mando inesperada en $file"}
+    [IO.File]::WriteAllText($file,$old.Replace($change[1],$change[2]),[Text.UTF8Encoding]::new($false))
+}
 
