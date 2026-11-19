@@ -7,6 +7,19 @@ $template=Join-Path $unity 'Assets/WebGLTemplates/Veterinaria'
 New-Item -ItemType Directory -Path $adapter,$template -Force | Out-Null
 Copy-Item -Path "$SourceRoot/adapter/*" -Destination $adapter -Recurse -Force
 Copy-Item -LiteralPath "$SourceRoot/template/index.html" -Destination $template -Force
+$simp=Join-Path "$CopyRoot/tools" 'UnityMeshSimplifier'
+if(!(Test-Path -LiteralPath $simp)){
+    git clone --depth 1 --branch v3.1.1 https://github.com/Whinarn/UnityMeshSimplifier.git $simp
+    if($LASTEXITCODE -ne 0){throw 'No se pudo descargar UnityMeshSimplifier'}
+}
+if((git -C $simp rev-parse HEAD) -ne '53fdb3122645bcd3ad2c258235200dff3dfbaa9b'){throw 'Versión inesperada de UnityMeshSimplifier'}
+$pkg=Join-Path "$unity/Packages" 'com.whinarn.unitymeshsimplifier'
+if(!(Test-Path -LiteralPath $pkg)){
+    New-Item -ItemType Directory -Path $pkg | Out-Null
+    foreach($part in @('Runtime','Runtime.meta','LICENSE.md','Third Party Notices.md','package.json')){
+        Copy-Item -LiteralPath "$simp/$part" -Destination $pkg -Recurse
+    }
+}
 $coreName='com.meta.xr.sdk.core'
 $core=Join-Path "$unity/Packages" $coreName
 if(!(Test-Path -LiteralPath $core)){

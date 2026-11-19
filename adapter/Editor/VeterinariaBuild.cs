@@ -42,6 +42,16 @@ public static class VeterinariaBuild {
         PlayerSettings.WebGL.dataCaching=true;
         PlayerSettings.WebGL.initialMemorySize=128;PlayerSettings.WebGL.maximumMemorySize=1536;
         PlayerSettings.runInBackground=false;
+        WebAnatomyMeshes.Prepare(enabled);
+        foreach(var path in AssetDatabase.GetDependencies(enabled,true).Where(p=>p.StartsWith("Assets/") && p.EndsWith(".prefab"))){
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if(!prefab || !(prefab.GetComponentsInChildren<VideoPlayer>(true).Any(v=>v.clip) ||
+               prefab.GetComponentsInChildren<VideoInteractivoVeterinaria>(true).Any(v=>v.videoPrincipal||v.videoError)))continue;
+            using(var edit=new PrefabUtility.EditPrefabContentsScope(path)){
+                AdaptVideos(edit.prefabContentsRoot.GetComponentsInChildren<VideoInteractivoVeterinaria>(true),
+                            edit.prefabContentsRoot.GetComponentsInChildren<VideoPlayer>(true));
+            }
+        }
         var levels=new List<AssetBundleBuild>();
         for(int i=0;i<enabled.Length;i++){
             var scene=EditorSceneManager.OpenScene(enabled[i]);
@@ -114,16 +124,20 @@ public static class VeterinariaBuild {
         if(!File.Exists(Path.Combine(Out,path)))throw new FileNotFoundException("Falta el vídeo web",path);
         return path;
     }
-    static void AdaptScene(Scene scene){
-        foreach(var interactive in All<VideoInteractivoVeterinaria>(scene)){
-            interactive.urlPrincipal=Media(interactive.videoPrincipal);interactive.urlError=Media(interactive.videoError);
+    static void AdaptVideos(IEnumerable<VideoInteractivoVeterinaria> activities,IEnumerable<VideoPlayer> players){
+        foreach(var interactive in activities){
+            if(interactive.videoPrincipal)interactive.urlPrincipal=Media(interactive.videoPrincipal);
+            if(interactive.videoError)interactive.urlError=Media(interactive.videoError);
             interactive.videoPrincipal=null;interactive.videoError=null;
         }
-        foreach(var video in All<VideoPlayer>(scene)){
+        foreach(var video in players){
             if(!video.clip)continue;
             var url=Media(video.clip);video.clip=null;video.source=VideoSource.Url;video.url=url;
-            video.gameObject.AddComponent<WebVideo>().mediaPath=url;
+            var web=video.GetComponent<WebVideo>()??video.gameObject.AddComponent<WebVideo>();web.mediaPath=url;
         }
+    }
+    static void AdaptScene(Scene scene){
+        AdaptVideos(All<VideoInteractivoVeterinaria>(scene),All<VideoPlayer>(scene));
         var oldCamera=All<Camera>(scene).FirstOrDefault(c=>c.CompareTag("MainCamera")) ?? All<Camera>(scene).FirstOrDefault();
         var rig=All<OVRCameraRig>(scene).FirstOrDefault(r=>r.gameObject.activeInHierarchy);
         var start=rig?rig.transform.position:oldCamera?oldCamera.transform.position-Vector3.up*1.6f:Vector3.zero;
