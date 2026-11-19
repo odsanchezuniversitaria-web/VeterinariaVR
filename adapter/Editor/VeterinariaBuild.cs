@@ -108,13 +108,15 @@ public static class VeterinariaBuild {
         if(!manifest)throw new Exception("Falló la compilación de recursos por escena.");
         var required=levels.SelectMany(l=>manifest.GetAllDependencies(l.assetBundleName).Append(l.assetBundleName)).Distinct().OrderBy(n=>n).ToArray();
         File.WriteAllText(Path.Combine(Out,"bundles.json"),JsonUtility.ToJson(new Catalog{names=required}));
+        var hashes=required.ToDictionary(n=>n,n=>manifest.GetAssetBundleHash(n).ToString());
+        var levelDependencies=levels.ToDictionary(l=>l.assetBundleName,l=>manifest.GetAllDependencies(l.assetBundleName));
         var gates=new List<string>();
         foreach(var level in levels){
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene);
             var gate=new GameObject("Cargando práctica").AddComponent<WebSceneGate>();
             gate.sceneBundle=level.assetBundleName;gate.scenePath=level.assetNames[0];
-            gate.dependencies=manifest.GetAllDependencies(gate.sceneBundle);
-            gate.versions=gate.dependencies.Concat(new[]{gate.sceneBundle}).Select(n=>manifest.GetAssetBundleHash(n).ToString()).ToArray();
+            gate.dependencies=levelDependencies[gate.sceneBundle];
+            gate.versions=gate.dependencies.Concat(new[]{gate.sceneBundle}).Select(n=>hashes[n]).ToArray();
             var path=Gates+"/"+Name(gate.scenePath)+".unity";
             if(!EditorSceneManager.SaveScene(scene,path))throw new IOException(path);gates.Add(path);
         }
