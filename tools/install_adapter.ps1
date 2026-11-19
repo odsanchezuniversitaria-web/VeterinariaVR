@@ -7,6 +7,32 @@ $template=Join-Path $unity 'Assets/WebGLTemplates/Veterinaria'
 New-Item -ItemType Directory -Path $adapter,$template -Force | Out-Null
 Copy-Item -Path "$SourceRoot/adapter/*" -Destination $adapter -Recurse -Force
 Copy-Item -LiteralPath "$SourceRoot/template/index.html" -Destination $template -Force
+$instrumentDir=Join-Path $unity 'Assets/Huesos 3D/Quirofano/Materials'
+$convertedDir=Join-Path $CopyRoot 'ModelosWeb/Instrumentos'
+if(Test-Path -LiteralPath $convertedDir){
+    $archive=Join-Path $CopyRoot 'FuentesMax'
+    New-Item -ItemType Directory -Path $archive -Force |Out-Null
+    foreach($fbx in Get-ChildItem -LiteralPath $convertedDir -File -Filter '*.fbx'){
+        $source=Join-Path $instrumentDir ($fbx.BaseName+'.max')
+        $destination=Join-Path $instrumentDir $fbx.Name
+        if(Test-Path -LiteralPath "$destination.meta"){continue}
+        if(!(Test-Path -LiteralPath "$source.meta")){throw "Falta el meta original de $source"}
+        $saved=Join-Path $archive ($fbx.BaseName+'.max')
+        if(Test-Path -LiteralPath $source){
+            if(Test-Path -LiteralPath $saved){throw "Ya existe la fuente archivada $saved"}
+            Move-Item -LiteralPath $source -Destination $saved
+        }
+        if(!(Test-Path -LiteralPath $saved)){throw "Falta la fuente del instrumento $saved"}
+        Copy-Item -LiteralPath $fbx.FullName -Destination $destination -Force
+        Move-Item -LiteralPath "$source.meta" -Destination "$destination.meta"
+    }
+}
+$wit=Join-Path "$unity/Packages/com.meta.xr.sdk.voice" 'Lib/Wit.ai/Lib/third-party/NativeWebSocket/WebSocket'
+foreach($suffix in @('.jslib','.jslib.meta')){
+    $src=Join-Path $wit ("WebSocket"+$suffix)
+    $dst=Join-Path $wit ("WitWebSocket"+$suffix)
+    if((Test-Path -LiteralPath $src) -and !(Test-Path -LiteralPath $dst)){Move-Item -LiteralPath $src -Destination $dst}
+}
 $simp=Join-Path "$CopyRoot/tools" 'UnityMeshSimplifier'
 if(!(Test-Path -LiteralPath $simp)){
     git clone --depth 1 --branch v3.1.1 https://github.com/Whinarn/UnityMeshSimplifier.git $simp

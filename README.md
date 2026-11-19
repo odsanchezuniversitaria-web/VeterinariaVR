@@ -14,6 +14,8 @@ En la carpeta de trabajo, `Unity/` contiene Assets, Packages y ProjectSettings d
 
 Durante la compilación, el adaptador reduce las mallas estáticas de alta densidad con UnityMeshSimplifier 3.1.1, conserva los submateriales y omite las mallas animadas. Los recursos que usan las mismas actividades se agrupan para permitir descargas parciales al cambiar de escena. [UnityMeshSimplifier](https://github.com/Whinarn/UnityMeshSimplifier/tree/v3.1.1)
 
+Para reconstruir desde las fuentes de OseoVr4, los cinco instrumentos de 3ds Max se convierten con Blender y `tools/convert_max.py`. El script recibe la carpeta de los archivos MAX, el destino `ModelosWeb/Instrumentos` y la carpeta del importador `io_scene_max`. El instalador conserva los GUID y archiva las fuentes en `FuentesMax`. La escena de elementos de protección también utiliza el prefab Teleport de Magic Effects FREE. Si falta, `python tools/restore_teleport.py <Unity/Assets> <Magic-Effects-FREE.unitypackage>` recupera las dependencias desde una copia local del paquete. [Importador Autodesk MAX de Blender](https://extensions.blender.org/add-ons/io-scene-max/)
+
 1. Instalar los adaptadores y la plantilla con `tools/install_adapter.ps1 -CopyRoot <carpeta-de-trabajo> -SourceRoot <este-repositorio>`.
 2. En Unity, seleccionar **Veterinaria Web → Compilar las escenas habilitadas** con WebGL activo. El resultado queda en `Delivery/`, junto a `Unity/`.
 3. Empaquetar con `tools/package-pages.ps1 -CopyRoot <carpeta-de-trabajo> -Destination <carpeta-nueva>`. Se comprueban los 18 paquetes de escenas, el cargador y los límites de distribución.

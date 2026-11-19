@@ -43,7 +43,11 @@ public static class VeterinariaBuild {
         PlayerSettings.WebGL.initialMemorySize=128;PlayerSettings.WebGL.maximumMemorySize=1536;
         PlayerSettings.runInBackground=false;
         WebAnatomyMeshes.Prepare(enabled);
-        foreach(var path in AssetDatabase.GetDependencies(enabled,true).Where(p=>p.StartsWith("Assets/") && p.EndsWith(".prefab"))){
+        var usedPrefabs=AssetDatabase.GetDependencies(enabled,true).Where(p=>p.StartsWith("Assets/") && p.EndsWith(".prefab"));
+        var videoPrefabs=Directory.EnumerateFiles("Assets","*.prefab",SearchOption.AllDirectories)
+            .Where(p=>File.ReadLines(p).Any(line=>line.Contains("m_VideoClip: {fileID: 32900000") || line.Contains("videoPrincipal: {fileID: 32900000")))
+            .Select(p=>p.Replace('\\','/'));
+        foreach(var path in usedPrefabs.Concat(videoPrefabs).Distinct()){
             var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if(!prefab || !(prefab.GetComponentsInChildren<VideoPlayer>(true).Any(v=>v.clip) ||
                prefab.GetComponentsInChildren<VideoInteractivoVeterinaria>(true).Any(v=>v.videoPrincipal||v.videoError)))continue;
@@ -64,7 +68,7 @@ public static class VeterinariaBuild {
         // Only pack assets together if exactly the same activities use them. This
         // prevents the menu from indirectly downloading resources for later practices.
         var usage=new Dictionary<string,int>();
-        var excluded=new HashSet<string>(StringComparer.OrdinalIgnoreCase){".cs",".dll",".unity",".asmdef",".cginc",".hlsl",".jslib"};
+        var excluded=new HashSet<string>(StringComparer.OrdinalIgnoreCase){".cs",".dll",".unity",".asmdef",".cginc",".hlsl",".jslib",".mp4",".mov",".webm"};
         for(int i=0;i<levels.Count;i++){
             foreach(string path in AssetDatabase.GetDependencies(levels[i].assetNames,true)){
                 if(!path.StartsWith("Assets/") || !File.Exists(path) || excluded.Contains(Path.GetExtension(path)))continue;
@@ -102,7 +106,8 @@ public static class VeterinariaBuild {
         var manifest=BuildPipeline.BuildAssetBundles(Content,levels.Concat(shared).ToArray(),
             BuildAssetBundleOptions.ChunkBasedCompression|BuildAssetBundleOptions.StrictMode,BuildTarget.WebGL);
         if(!manifest)throw new Exception("Falló la compilación de recursos por escena.");
-        File.WriteAllText(Path.Combine(Out,"bundles.json"),JsonUtility.ToJson(new Catalog{names=manifest.GetAllAssetBundles()}));
+        var required=levels.SelectMany(l=>manifest.GetAllDependencies(l.assetBundleName).Append(l.assetBundleName)).Distinct().OrderBy(n=>n).ToArray();
+        File.WriteAllText(Path.Combine(Out,"bundles.json"),JsonUtility.ToJson(new Catalog{names=required}));
         var gates=new List<string>();
         foreach(var level in levels){
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene);
