@@ -14,6 +14,11 @@ const fs = require('node:fs');
       const page=await context.newPage();
       const errors=[];
       page.on('pageerror',e=>errors.push(e.message));
+      page.on('console',msg=>{
+        const line=msg.text();
+        if(/(?:DllNotFound|EntryPointNotFound|MissingMethod|NullReference)Exception|out of memory|memory access out of bounds|WebGL context lost|Unable to parse Build/i.test(line))
+          errors.push(line.slice(0,500));
+      });
       page.on('response',r=>{if(r.url().startsWith(base.href)&&r.status()>=400)errors.push(r.status()+' '+r.url());});
       await page.goto(base.href,{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>!!document.querySelector('#view')?.dataset.scene,null,{timeout:180000});
@@ -23,13 +28,38 @@ const fs = require('node:fs');
         await page.selectOption('#levels',scene);
         await page.waitForFunction(name=>document.querySelector('#view').dataset.scene===name && !document.querySelector('#levels').disabled,scene,{timeout:150000});
         const canvas=await page.locator('#view').boundingBox();assert.ok(canvas.width>0&&canvas.height>0);
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'La página desborda el ancho de pantalla');
         if(touch)await page.touchscreen.tap(canvas.width*.60,canvas.height*.46);
         else{await page.keyboard.down('w');await page.waitForTimeout(150);await page.keyboard.up('w');}
-        evidence.push({touch,scene});
+        evidence.push({touch,scene,errors:[...new Set(errors)]});
         console.log(touch?'Táctil':'Escritorio',scene);
       }
       assert.deepEqual(errors,[]);
       await context.close();
+    }
+    if(process.env.XR_TEST_BUNDLE){
+      const xr=await browser.newContext({viewport:{width:1100,height:720}});
+      await xr.addInitScript({content:fs.readFileSync(process.env.XR_TEST_BUNDLE,'utf8')+
+        '\nwindow.questTest=new IWER.XRDevice(IWER.metaQuest3);window.questTest.installRuntime();'});
+      const page=await xr.newPage();
+      await page.goto(base.href,{waitUntil:'domcontentloaded'});
+      await page.waitForFunction(()=>!!document.querySelector('#view')?.dataset.scene,null,{timeout:180000});
+      await page.locator('#xr').click();
+      await page.waitForFunction(()=>!!window.questTest.activeSession,null,{timeout:30000});
+      const result=await page.evaluate(async()=>{
+        const session=window.questTest.activeSession,space=await session.requestReferenceSpace('local-floor');
+        const views=await new Promise(resolve=>session.requestAnimationFrame((_,frame)=>resolve(frame.getViewerPose(space)?.views.length)));
+        const hands=Array.from(session.inputSources,s=>s.handedness);
+        const right=window.questTest.controllers.right;
+        right.updateButtonValue('trigger',1);
+        await new Promise(resolve=>session.requestAnimationFrame(resolve));
+        right.updateButtonValue('trigger',0);
+        await session.end();
+        return {views,hands};
+      });
+      assert.equal(result.views,2);assert.ok(result.hands.includes('right')&&result.hands.includes('left'));
+      evidence.push({device:'Quest 3 emulada',...result});
+      await xr.close();
     }
   } finally {
     if(process.argv[3])fs.writeFileSync(process.argv[3],JSON.stringify(evidence,null,2));

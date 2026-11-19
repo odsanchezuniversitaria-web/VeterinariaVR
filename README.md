@@ -10,7 +10,9 @@ Adaptación web de OseoVr4 para una misma dirección de acceso desde escritorio,
 
 ## Compilación sobre la copia de autoría
 
-En la carpeta de trabajo, `Unity/` contiene Assets, Packages y ProjectSettings del proyecto. La copia requiere el módulo WebGL de Unity, el proveedor WebXR Export y su integración con XR Management. El adaptador busca el proyecto de autoría por sus escenas y mantiene las versiones de destino en `Assets/WebPortGenerated/`. Los quince vídeos H.264 preparados para la web se encuentran en `Delivery/Media/<guid>.mp4`; el GUID proviene del archivo meta original.
+En la carpeta de trabajo, `Unity/` contiene Assets, Packages y ProjectSettings de la copia. La copia requiere el módulo WebGL de Unity, WebXR Export y su integración con XR Management. Las escenas generadas se guardan en `Assets/WebPortGenerated/`. Los quince vídeos H.264 se preparan con `tools/prepare-media.ps1 -CopyRoot <carpeta-de-trabajo>` y se sirven desde `Delivery/Media/<guid>.mp4`. Cada GUID corresponde al archivo meta original.
+
+Durante la compilación, el adaptador reduce las mallas estáticas de alta densidad con UnityMeshSimplifier 3.1.1, conserva los submateriales y omite las mallas animadas. Los recursos que usan las mismas actividades se agrupan para permitir descargas parciales al cambiar de escena. [UnityMeshSimplifier](https://github.com/Whinarn/UnityMeshSimplifier/tree/v3.1.1)
 
 1. Instalar los adaptadores y la plantilla con `tools/install_adapter.ps1 -CopyRoot <carpeta-de-trabajo> -SourceRoot <este-repositorio>`.
 2. En Unity, seleccionar **Veterinaria Web → Compilar las escenas habilitadas** con WebGL activo. El resultado queda en `Delivery/`, junto a `Unity/`.
