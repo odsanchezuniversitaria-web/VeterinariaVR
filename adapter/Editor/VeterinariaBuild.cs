@@ -54,7 +54,7 @@ public static class VeterinariaBuild {
         // Put multiply-used geometry, audio, prefabs and materials in shared bundles by GUID.
         // Individual heavyweight imports get independent requests instead of duplicating them across levels.
         var owners=levels.SelectMany(l=>AssetDatabase.GetDependencies(l.assetNames,true).Distinct())
-            .Where(p=>p.StartsWith("Assets/") && !p.StartsWith(Generated+"/")
+            .Where(p=>p.StartsWith("Assets/") && File.Exists(p) && !p.StartsWith(Generated+"/")
                 && !new[]{".cs",".dll",".unity",".asmdef",".cginc",".hlsl",".jslib"}.Contains(Path.GetExtension(p).ToLowerInvariant()))
             .GroupBy(p=>p).Where(g=>g.Count()>1).Select(g=>g.Key).OrderBy(p=>p).ToArray();
         var shared=owners.GroupBy(p=>new FileInfo(p).Length>=4*1024*1024?"modelo-"+AssetDatabase.AssetPathToGUID(p):
@@ -125,8 +125,8 @@ public static class VeterinariaBuild {
         go.tag="MainCamera";go.transform.SetParent(player.transform,false);go.transform.localPosition=Vector3.up*1.6f;
         var eye=go.GetComponent<Camera>();player.eye=eye;
         if(oldCamera){eye.clearFlags=oldCamera.clearFlags;eye.backgroundColor=oldCamera.backgroundColor;eye.cullingMask=oldCamera.cullingMask;}
-        eye.nearClipPlane=.035f;eye.farClipPlane=200;eye.stereoTargetEye=StereoTargetEyeMask.None;
-        var urp=go.AddComponent<UniversalAdditionalCameraData>();urp.renderPostProcessing=false;urp.renderShadows=false;
+        eye.nearClipPlane=.035f;eye.farClipPlane=200;
+        var urp=go.AddComponent<UniversalAdditionalCameraData>();urp.allowXRRendering=false;urp.renderPostProcessing=false;urp.renderShadows=false;
         foreach(var canvas in All<Canvas>(scene))if(canvas.renderMode!=RenderMode.ScreenSpaceOverlay)canvas.worldCamera=eye;
         new GameObject("WebXR",typeof(WebXRManager));
         player.left=Hand(player.transform,WebXRControllerHand.LEFT);player.right=Hand(player.transform,WebXRControllerHand.RIGHT);

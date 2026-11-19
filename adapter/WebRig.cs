@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.XR;
 using Oculus.Interaction;
 using WebXR;
@@ -25,7 +26,9 @@ public sealed class WebRig : MonoBehaviour {
     Vector2 walkStart, lookStart;
     bool wasVR, touchDragging;
     CharacterController body;
-    void Awake(){body=GetComponent<CharacterController>();WebLegacyInput.rig=this;}
+    UniversalAdditionalCameraData renderData;
+    void Awake(){body=GetComponent<CharacterController>();WebLegacyInput.rig=this;renderData=eye.GetComponent<UniversalAdditionalCameraData>();}
+    public void EnterVR(){if(WebXRManager.Instance)WebXRManager.Instance.ToggleVR();}
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaSceneReady(string scene);
     void Start(){
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -47,7 +50,7 @@ public sealed class WebRig : MonoBehaviour {
 
     void Update() {
         bool vr = WebXRManager.Instance != null && WebXRManager.Instance.XRState == WebXRState.VR;
-        eye.stereoTargetEye = vr ? StereoTargetEyeMask.Both : StereoTargetEyeMask.None;
+        if(renderData && renderData.allowXRRendering!=vr)renderData.allowXRRendering=vr;
         if (vr) {
             var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
             if (head.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 p)) eye.transform.localPosition = p;

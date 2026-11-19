@@ -9,7 +9,7 @@ document.addEventListener('veterinaria-scene',e=>{view.dataset.scene=e.detail;le
 levels.onchange=()=>{if(!player)return;levels.disabled=true;statusBox.textContent='Abriendo '+levels.value;statusBox.hidden=false;player.SendMessage('VeterinariaWeb','OpenLevel',levels.value)};
 document.querySelector('#help').onclick=()=>{helpOpen=!helpOpen;statusBox.hidden=!helpOpen;if(helpOpen)statusBox.textContent='PC: WASD para caminar, arrastre derecho para mirar, clic para seleccionar. Celular: mueve el pulgar desde abajo a la izquierda, arrastra para mirar y toca para seleccionar. VR: usa el gatillo y el stick izquierdo.'};
 view.oncontextmenu=e=>e.preventDefault();document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>player?.SendMessage('VeterinariaWeb',b.dataset.act));
-vr.onclick=()=>{if(player?.Module?.WebXR)player.Module.WebXR.toggleVR()};function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
+vr.onclick=()=>player?.SendMessage('VeterinariaWeb','EnterVR');function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
 </script><script src="Build/{{{ LOADER_FILENAME }}}"></script><script>
 createUnityInstance(view,{dataUrl:'Build/{{{ DATA_FILENAME }}}',frameworkUrl:'Build/{{{ FRAMEWORK_FILENAME }}}',codeUrl:'Build/{{{ CODE_FILENAME }}}',streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'1',devicePixelRatio:Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;statusBox.hidden=true;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
 </script></body></html>
