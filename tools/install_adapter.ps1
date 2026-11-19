@@ -7,6 +7,25 @@ $template=Join-Path $unity 'Assets/WebGLTemplates/Veterinaria'
 New-Item -ItemType Directory -Path $adapter,$template -Force | Out-Null
 Copy-Item -Path "$SourceRoot/adapter/*" -Destination $adapter -Recurse -Force
 Copy-Item -LiteralPath "$SourceRoot/template/index.html" -Destination $template -Force
+$mrName='com.meta.xr.mrutilitykit'
+$mr=Join-Path "$unity/Packages" $mrName
+if(!(Test-Path -LiteralPath $mr)){
+    $cached=Join-Path "$unity/Library/PackageCache" $mrName
+    if(!(Test-Path -LiteralPath $cached)){$cached=(Get-ChildItem "$unity/Library/PackageCache" -Directory -Filter "$mrName@*"|Select-Object -First 1).FullName}
+    if((Get-Content -Raw -LiteralPath "$cached/package.json"|ConvertFrom-Json).version -ne '201.0.0'){throw 'Se requiere MR Utility Kit 201.0.0'}
+    Copy-Item -LiteralPath $cached -Destination $mr -Recurse -Force
+}
+foreach($component in @(@('MRUK.Shared.cs','BeforeSplashScreen'),@('MRUKGlobalContext.cs','BeforeSceneLoad'))){
+    $file=Join-Path "$mr/Core/Scripts" $component[0]
+    $attr='[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.'+$component[1]+')]'
+    $old=[IO.File]::ReadAllText($file)
+    $replacement="#if !UNITY_WEBGL || UNITY_EDITOR`n        "+$attr+"`n#endif"
+    if(!$old.Contains($replacement)){
+        if(!$old.Contains($attr)){throw "Inicializador de MRUK inesperado: $file"}
+        (Get-Item -LiteralPath $file).IsReadOnly=$false
+        [IO.File]::WriteAllText($file,$old.Replace($attr,$replacement),[Text.UTF8Encoding]::new($false))
+    }
+}
 $instrumentDir=Join-Path $unity 'Assets/Huesos 3D/Quirofano/Materials'
 $convertedDir=Join-Path $CopyRoot 'ModelosWeb/Instrumentos'
 if(Test-Path -LiteralPath $convertedDir){
@@ -88,6 +107,19 @@ foreach($rel in @('CuerdaFisica.cs','DetectarAgarre.cs','PuntoSuturaSimple.cs','
     if($new -cne $old){[IO.File]::WriteAllText($file,$new,[Text.UTF8Encoding]::new($false))}
 }
 $net=Join-Path $unity 'Assets/Scripts/Multijugador/ConectorMultijugador.cs'
+$walker=Join-Path $unity 'Packages/com.meta.xr.sdk.voice/Lib/Wit.ai/Scripts/Editor/Conduit/AssemblyWalker.cs'
+$telemetry=Join-Path $core 'Editor/Utils/SampleMetadata/UpdateManifestWithCodeSample.cs'
+foreach($fix in @(
+    @($walker,'_assemblies.Add(conduitAssembly.FullName.Split('','').First(), conduitAssembly);','_assemblies.TryAdd(conduitAssembly.FullName.Split('','').First(), conduitAssembly);'),
+    @($telemetry,'foreach (var type in assembly.GetTypes())',"System.Type[] available; try { available = assembly.GetTypes(); } catch (System.Reflection.ReflectionTypeLoadException e) { available = e.Types; }`n                foreach (var type in available)"),
+    @($telemetry,'var codeSampleAttributes = type.GetCustomAttributes','if (type == null) continue; var codeSampleAttributes = type.GetCustomAttributes')
+)){
+    $file=$fix[0];$old=[IO.File]::ReadAllText($file)
+    if($old.Contains($fix[2])){continue}
+    if(!$old.Contains($fix[1])){throw "Firma de herramienta de compilación inesperada: $file"}
+    (Get-Item -LiteralPath $file).IsReadOnly=$false
+    [IO.File]::WriteAllText($file,$old.Replace($fix[1],$fix[2]),[Text.UTF8Encoding]::new($false))
+}
 $old=[IO.File]::ReadAllText($net)
 $new=$old.Replace('soporte.AddComponent<NetworkSceneManagerDefault>()','soporte.AddComponent<WebNetworkScenes>()').Replace('SceneRef.FromIndex(escenaActual.buildIndex)','gestorEscena.GetSceneRef(escenaActual.path)')
 if($new -cne $old){[IO.File]::WriteAllText($net,$new,[Text.UTF8Encoding]::new($false))}

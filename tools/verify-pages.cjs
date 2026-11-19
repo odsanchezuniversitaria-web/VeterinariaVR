@@ -13,13 +13,15 @@ const fs = require('node:fs');
       const context=await browser.newContext({viewport:touch?{width:390,height:844}:{width:1280,height:800},hasTouch:touch,isMobile:touch});
       const page=await context.newPage();
       const errors=[];
-      page.on('pageerror',e=>errors.push(e.message));
+      const recordError=message=>{if(!errors.includes(message)){console.error(message);errors.push(message);}};
+      page.on('pageerror',e=>recordError(e.message));
       page.on('console',msg=>{
         const line=msg.text();
+        if(process.env.WEB_TEST_LOG)console.log('Navegador',line.slice(0,750));
         if(/(?:DllNotFound|EntryPointNotFound|MissingMethod|NullReference)Exception|out of memory|memory access out of bounds|WebGL context lost|Unable to parse Build/i.test(line))
-          errors.push(line.slice(0,500));
+          recordError(line.slice(0,500));
       });
-      page.on('response',r=>{if(r.url().startsWith(base.href)&&r.status()>=400)errors.push(r.status()+' '+r.url());});
+      page.on('response',r=>{if(r.url().startsWith(base.href)&&r.status()>=400)recordError(r.status()+' '+r.url());});
       await page.goto(base.href,{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>!!document.querySelector('#view')?.dataset.scene,null,{timeout:180000});
       const names=await page.locator('#levels option').evaluateAll(opts=>opts.map(o=>o.value));

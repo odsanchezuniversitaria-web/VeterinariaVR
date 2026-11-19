@@ -120,7 +120,19 @@ public static class VeterinariaBuild {
             var path=Gates+"/"+Name(gate.scenePath)+".unity";
             if(!EditorSceneManager.SaveScene(scene,path))throw new IOException(path);gates.Add(path);
         }
-        var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=gates.ToArray(),target=BuildTarget.WebGL,
+        BuildPlayer(gates.ToArray(), enabled);
+    }
+    [MenuItem("Veterinaria Web/Recompilar reproductor con los paquetes existentes")]
+    public static void RebuildPlayer(){
+        if(!File.Exists(Path.Combine(Out,"bundles.json")))throw new InvalidOperationException("Falta el catálogo de paquetes");
+        var enabled=EditorBuildSettings.scenes.Where(s=>s.enabled).Select(s=>s.path).ToArray();
+        var gates=enabled.Select(p=>Gates+"/"+Name(p)+".unity").ToArray();
+        if(gates.Length!=18 || gates.Any(p=>!File.Exists(p)))throw new InvalidOperationException("Faltan entradas de escena");
+        SetupXR();BuildPlayer(gates,enabled);
+    }
+    static void BuildPlayer(string[] gates,string[] enabled){
+        PlayerSettings.WebGL.debugSymbolMode=WebGLDebugSymbolMode.External;
+        var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=gates,target=BuildTarget.WebGL,
             locationPathName=Out,assetBundleManifestPath=Path.Combine(Content,"Content.manifest"),options=BuildOptions.StrictMode});
         if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Falló el reproductor WebGL: "+report.summary.result);
         File.WriteAllText(Path.Combine(Out,"actividades.json"),JsonUtility.ToJson(new Catalog{names=enabled.Select(Name).ToArray()}));
@@ -218,6 +230,8 @@ public static class VeterinariaBuild {
         var manager=all.ManagerSettingsForBuildTarget(group);var general=all.SettingsForBuildTarget(group);
         var loader=AssetDatabase.LoadAssetAtPath<WebXRLoader>(Generated+"/Loader.asset");
         if(!loader){loader=ScriptableObject.CreateInstance<WebXRLoader>();AssetDatabase.CreateAsset(loader,Generated+"/Loader.asset");}
+        foreach(var other in manager.activeLoaders.Where(l=>l!=loader).ToArray())
+            if(!manager.TryRemoveLoader(other))throw new Exception("No se pudo retirar un cargador nativo de la configuración WebGL");
         if(!manager.activeLoaders.Contains(loader)&&!manager.TryAddLoader(loader))throw new Exception("Falta el cargador WebXR");
         manager.automaticLoading=true;manager.automaticRunning=true;general.AssignedSettings=manager;general.InitManagerOnStart=true;
         all.SetSettingsForBuildTarget(group,general);

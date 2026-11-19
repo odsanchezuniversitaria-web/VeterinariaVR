@@ -16,6 +16,16 @@ foreach($dir in @('Build','Media','StreamingAssets','Content')){
     New-Item -ItemType Directory -Path $target | Out-Null
     if($dir -eq 'Content'){
         foreach($name in $bundles){Copy-Item -LiteralPath "$src/$dir/$name" -Destination $target}
+    }elseif($dir -eq 'StreamingAssets'){
+        foreach($entry in Get-ChildItem -LiteralPath "$src/$dir"){
+            if($entry.Name -ne 'SampleAssets'){Copy-Item -LiteralPath $entry.FullName -Destination $target -Recurse;continue}
+            $sampleTarget=Join-Path $target $entry.Name
+            foreach($sample in Get-ChildItem -LiteralPath $entry.FullName){
+                if($sample.Name -in @('PresetAvatars_Rift.zip','PresetAvatars_Rift_Light.zip')){continue}
+                New-Item -ItemType Directory -Path $sampleTarget -Force|Out-Null
+                Copy-Item -LiteralPath $sample.FullName -Destination $sampleTarget -Recurse
+            }
+        }
     }else{Get-ChildItem -LiteralPath "$src/$dir" | Copy-Item -Destination $target -Recurse}
 }
 New-Item -ItemType File -Path "$Destination/.nojekyll" | Out-Null
