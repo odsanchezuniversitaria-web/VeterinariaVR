@@ -2,7 +2,15 @@
 
 Adaptación web de OseoVr4 para una misma dirección de acceso desde escritorio, celular y navegadores con WebXR. La aplicación se construye a partir de la copia independiente del proyecto Unity 6000.0.20f1. El alcance comprende las 18 escenas habilitadas, sus prácticas y sus recursos audiovisuales.
 
-## Estructura
+## Controles en pantalla
+
+En PC, un clic selecciona el objeto o botón bajo el cursor. Mantener el clic permite arrastrar piezas y herramientas. Arrastrar el fondo gira la vista. WASD y las flechas desplazan al usuario.
+
+En celular, un toque selecciona y un arrastre sobre el fondo gira la vista. En vertical, la portada muestra el menú 3D completo y una lista de actividades que se abren con un toque. Dentro de la escena, la palanca de la esquina inferior izquierda permite caminar mientras se toca la escena con otro dedo. El menú **Acciones** reúne los controles que ofrece la práctica actual.
+
+La cámara de pantalla utiliza la panorámica del laboratorio en las escenas con fondo genérico y conserva los cielos propios de otras actividades. Cuando hay suelo físico, la posición inicial se calcula sobre él y se comprueba que haya espacio para estar de pie. WebXR utiliza la cámara de la escena y los mandos del visor.
+
+## Archivos del proyecto
 
 - `adapter/` contiene el reproductor de escenas, la entrada de punteros y mandos, y la integración con los componentes de la práctica.
 - `template/` contiene la página de arranque para GitHub Pages.

@@ -4,7 +4,6 @@ using WebXR;
 // Existing veterinary scripts consume OVR-style semantic actions and camera-local poses.
 public static class WebLegacyInput {
     public static WebRig rig;
-    public static bool useLeft;
     static readonly System.Collections.Generic.Dictionary<OVRInput.Button,int> taps=new System.Collections.Generic.Dictionary<OVRInput.Button,int>();
     public static void Tap(OVRInput.Button button)=>taps[button]=Time.frameCount+1;
     static bool XR => WebXRManager.Instance && WebXRManager.Instance.XRState==WebXRState.VR;
@@ -38,8 +37,7 @@ public static class WebLegacyInput {
             return device!=OVRInput.Controller.RTouch && rig.left.GetButton(action) ||
                    device!=OVRInput.Controller.LTouch && rig.right.GetButton(action);
         }
-        return (device==OVRInput.Controller.Touch || (device==OVRInput.Controller.LTouch)==useLeft) &&
-            (Input.GetMouseButton(0)||Input.touchCount>0);
+        return device!=OVRInput.Controller.LTouch && rig.ScreenHeld;
     }
     public static Vector3 GetLocalControllerPosition(OVRInput.Controller device){
         if(!rig)return Vector3.zero;

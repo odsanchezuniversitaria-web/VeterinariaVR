@@ -8,7 +8,7 @@ using UnityEngine.XR;
 using Oculus.Interaction;
 using WebXR;
 
-public sealed class WebRig : MonoBehaviour {
+public sealed partial class WebRig : MonoBehaviour {
     static Material[] materialsForDynamicShaders;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void CargarShaders(){ materialsForDynamicShaders=Resources.LoadAll<Material>("VeterinariaShaders"); }
@@ -25,17 +25,25 @@ public sealed class WebRig : MonoBehaviour {
     public LineRenderer leftRay,rightRay;
     Vector2 look, walk;
     float pitch;
-    int touchWalk = -1, touchLook = -1;
-    Vector2 walkStart, lookStart;
-    bool wasVR, touchDragging;
+    int touchLook = -1;
+    Vector2 lookStart, stick;
+    bool touchDragging;
+    WebScreenView screenView;
     CharacterController body;
     UniversalAdditionalCameraData renderData;
     void Awake(){body=GetComponent<CharacterController>();WebLegacyInput.rig=this;renderData=eye.GetComponent<UniversalAdditionalCameraData>();}
     public void EnterVR(){if(WebXRManager.Instance)WebXRManager.Instance.ToggleVR();}
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaSceneReady(string scene);
+    [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaScreenMode(int flat);
+    static void ReportMode(bool flat){
+#if UNITY_WEBGL && !UNITY_EDITOR
+        VeterinariaScreenMode(flat?1:0);
+#endif
+    }
     void Start(){
 #if UNITY_WEBGL && !UNITY_EDITOR
         VeterinariaSceneReady(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+        AnnounceActions();
 #endif
     }
     public void OpenLevel(string level){
@@ -51,31 +59,25 @@ public sealed class WebRig : MonoBehaviour {
     public void ActionX() { WebLegacyInput.Tap(OVRInput.Button.Three); }
     public void ActionY() { WebLegacyInput.Tap(OVRInput.Button.Four); }
     public void ActionMenu() { WebLegacyInput.Tap(OVRInput.Button.Start); }
-    public void SwapHand() { WebLegacyInput.useLeft=!WebLegacyInput.useLeft; }
     public void TogglePause() { FindFirstObjectByType<OseoVR.Boxeo.PausaBoxeo>()?.Alternar(); }
 
     void Update() {
         bool vr = WebXRManager.Instance != null && WebXRManager.Instance.XRState == WebXRState.VR;
         if(renderData && renderData.allowXRRendering!=vr)renderData.allowXRRendering=vr;
         if (vr) {
+            if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;screenView.Leave();}
+            if(!wasImmersive)ReportMode(false);
             var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
             if (head.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 p)) eye.transform.localPosition = p;
             if (head.TryGetFeatureValue(CommonUsages.centerEyeRotation, out Quaternion q)) eye.transform.localRotation = q;
             walk = left.GetAxis2D(WebXRController.Axis2DTypes.Thumbstick);
             VRPointer(0,left,originalLeft); VRPointer(1,right,originalRight);
         } else {
-            if (wasVR) { eye.transform.localPosition=Vector3.up*1.6f; eye.transform.localRotation=Quaternion.identity; }
-            walk = Vector2.zero; look = Vector2.zero;
-            if(Input.touchCount>0) TouchInput();
-            else {
-                if(touchWalk>=0||touchLook>=0) { Release(1,eye.transform.rotation); touchWalk=touchLook=-1; }
-                walk = new Vector2(Input.GetAxisRaw("Horizontal"),Input.GetAxisRaw("Vertical"));
-                if(Input.GetMouseButton(1)) look = new Vector2(Input.GetAxis("Mouse X"),Input.GetAxis("Mouse Y"))*2.5f;
-                if(Input.GetKeyDown(KeyCode.Tab))SwapHand();
-                int hand=WebLegacyInput.useLeft?0:1;
-                HandleRay(hand,eye.ScreenPointToRay(Input.mousePosition),Input.GetMouseButtonDown(0),
-                    Input.GetMouseButtonUp(0),eye.transform.rotation,hand==0?originalLeft:originalRight);
-            }
+            if(screenView==null)screenView=new WebScreenView(this,body);
+            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();ReportMode(true);}
+            if(leftRay)leftRay.enabled=false;
+            if(rightRay)rightRay.enabled=false;
+            ScreenInput();
             transform.Rotate(Vector3.up,look.x,Space.World);
             pitch=Mathf.Clamp(pitch-look.y,-80,80); eye.transform.localRotation=Quaternion.Euler(pitch,0,0);
         }
@@ -84,26 +86,7 @@ public sealed class WebRig : MonoBehaviour {
         var delta=(forward*walk.y+Vector3.Cross(Vector3.up,forward)*walk.x)*Time.unscaledDeltaTime*1.8f;
         if(body)body.Move(delta);else transform.position+=delta;
         if(originalEye) originalEye.SetPositionAndRotation(eye.transform.position,eye.transform.rotation);
-        wasVR=vr;
-    }
-    void TouchInput() {
-        for(int n=0;n<Input.touchCount;n++){
-            var t=Input.GetTouch(n);
-            if(t.phase==TouchPhase.Began) {
-                if(t.position.x<Screen.width*.28f && t.position.y<Screen.height*.56f && touchWalk<0){
-                    touchWalk=t.fingerId; walkStart=t.position;
-                } else if(touchLook<0){touchLook=t.fingerId;lookStart=t.position;touchDragging=false;
-                    HandleRay(WebLegacyInput.useLeft?0:1,eye.ScreenPointToRay(t.position),true,false,eye.transform.rotation,WebLegacyInput.useLeft?originalLeft:originalRight);}
-            }
-            bool end=t.phase==TouchPhase.Ended||t.phase==TouchPhase.Canceled;
-            if(t.fingerId==touchWalk){walk=Vector2.ClampMagnitude((t.position-walkStart)/65f,1);if(end){touchWalk=-1;walk=Vector2.zero;}}
-            if(t.fingerId!=touchLook)continue;
-            if((t.position-lookStart).sqrMagnitude>64)touchDragging=true;
-            int hand=WebLegacyInput.useLeft?0:1;
-            if(!selected[hand] && touchDragging) look=t.deltaPosition*.14f;
-            HandleRay(hand,eye.ScreenPointToRay(t.position),false,end,eye.transform.rotation,hand==0?originalLeft:originalRight);
-            if(end)touchLook=-1;
-        }
+        wasImmersive=vr;
     }
     void VRPointer(int i,WebXRController c,Transform hand) {
         var line=i==0?leftRay:rightRay;
@@ -146,10 +129,16 @@ public sealed class WebRig : MonoBehaviour {
         }
         return false;
     }
-    void HandleRay(int i,Ray ray,bool press,bool release,Quaternion rotation,Transform mouseHand) {
+    void HandleRay(int i,Ray ray,bool press,bool release,Quaternion rotation,Transform mouseHand,bool screen=false) {
         bool hit=Physics.Raycast(ray,out var nearest,10,Physics.DefaultRaycastLayers,QueryTriggerInteraction.Collide);
-        if(mouseHand)mouseHand.SetPositionAndRotation(ray.GetPoint(selected[i]?distances[i]:hit?nearest.distance:.65f),rotation);
-        if(press && !selected[i] && !ClickUI(i,ray,hit?nearest.distance:10) && hit) {
+        float limit=hit?nearest.distance:10;
+        if(screen && press)hit=ScreenHit(ray,out nearest,out limit);
+        if(screen && press && hit){
+            screenDepth=nearest.distance;
+        }
+        if(mouseHand)mouseHand.SetPositionAndRotation(ray.GetPoint(selected[i]?distances[i]:screen && ScreenHeld?screenDepth:hit?nearest.distance:.65f),rotation);
+        if(press && !selected[i] && !ClickUI(i,ray,limit) && hit) {
+            if(screen)PickSuture(nearest.collider);
             wrappers[i]=nearest.collider.GetComponentInParent<InteractableUnityEventWrapper>()??nearest.collider.GetComponentInChildren<InteractableUnityEventWrapper>();
             if(wrappers[i]){wrappers[i].WhenHover.Invoke();wrappers[i].WhenSelect.Invoke();}
             var point=nearest.collider.GetComponentInParent<PointableElement>() ?? nearest.collider.GetComponentInChildren<PointableElement>();
@@ -176,13 +165,13 @@ public sealed class WebRig : MonoBehaviour {
         }
         if(release)Release(i,rotation);
     }
-    void Release(int i,Quaternion rotation) {
+    void Release(int i,Quaternion rotation,bool cancel=false) {
         if(wrappers[i]){wrappers[i].WhenUnselect.Invoke();wrappers[i].WhenUnhover.Invoke();wrappers[i]=null;}
         if(uiTarget[i]){
             var data=uiData[i];
             ExecuteEvents.Execute(uiTarget[i],data,ExecuteEvents.pointerUpHandler);
             if(data.dragging)ExecuteEvents.Execute(data.pointerDrag,data,ExecuteEvents.endDragHandler);
-            else ExecuteEvents.Execute(uiTarget[i],data,ExecuteEvents.pointerClickHandler);
+            else if(!cancel)ExecuteEvents.Execute(uiTarget[i],data,ExecuteEvents.pointerClickHandler);
             uiTarget[i]=null;uiCanvas[i]=null;uiData[i]=null;
         }
         if(!selected[i])return;

@@ -131,6 +131,17 @@ public static class VeterinariaBuild {
         SetupXR();BuildPlayer(gates,enabled);
     }
     static void BuildPlayer(string[] gates,string[] enabled){
+        const string screenFolder="Assets/VeterinariaWeb/Resources/VeterinariaPantalla";
+        Directory.CreateDirectory(screenFolder);
+        AssetDatabase.Refresh();
+        var lab=AssetDatabase.LoadAssetAtPath<Cubemap>("Assets/Scenes/Scena7 LaboratorioClinico/ReflectionProbe-0.exr");
+        var skyShader=Shader.Find("Skybox/Cubemap");
+        if(!lab || !skyShader)throw new InvalidOperationException("Falta el entorno del laboratorio para pantalla");
+        var skyPath=screenFolder+"/Laboratorio.mat";
+        var sky=AssetDatabase.LoadAssetAtPath<Material>(skyPath);
+        if(!sky){sky=new Material(skyShader);AssetDatabase.CreateAsset(sky,skyPath);}
+        sky.SetTexture("_Tex",lab);sky.SetFloat("_Exposure",1.1f);
+        EditorUtility.SetDirty(sky);
         const string shadersFolder="Assets/VeterinariaWeb/Resources/VeterinariaShaders";
         Directory.CreateDirectory(shadersFolder);
         AssetDatabase.Refresh();

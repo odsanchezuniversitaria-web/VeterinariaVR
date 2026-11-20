@@ -14,10 +14,13 @@ const fs = require('node:fs');
       const context=await browser.newContext({viewport:touch?{width:390,height:844}:{width:1280,height:800},hasTouch:touch,isMobile:touch});
       const page=await context.newPage();
       const errors=[];
+      const heights=new Map();
       const recordError=message=>{if(!errors.includes(message)){console.error(message);errors.push(message);}};
       page.on('pageerror',e=>recordError(e.message));
       page.on('console',msg=>{
         const line=msg.text();
+        const pose=/Vista de pantalla (.+?) · pies (.+?) · ojos ([\d.,-]+) · fondo (.+)/.exec(line);
+        if(pose)heights.set(pose[1],{feet:pose[2],eye:Number(pose[3].replace(',','.')),background:pose[4].trim()});
         if(process.env.WEB_TEST_LOG)console.log('Navegador',line.slice(0,750));
         if(/\b\w+Exception:|out of memory|memory access out of bounds|WebGL context lost|Unable to parse Build/i.test(line))
           recordError(line.slice(0,500));
@@ -27,14 +30,35 @@ const fs = require('node:fs');
       await page.waitForFunction(()=>!!document.querySelector('#view')?.dataset.scene,null,{timeout:180000});
       const names=await page.locator('#levels option').evaluateAll(opts=>opts.map(o=>o.value));
       assert.equal(names.length,18);
+      assert.equal(await page.getByRole('button',{name:'Mano',exact:true}).count(),0);
+      await page.locator('#help').click();
+      assert.match(await page.locator('#status').innerText(),touch?/Toca un objeto/:/Haz clic/);
+      await page.locator('#help').click();
+      assert.equal(await page.locator('#mobileLevels').isVisible(),touch);
       for(const scene of names){
-        await page.selectOption('#levels',scene);
+        if(await page.locator('#view').getAttribute('data-scene')!==scene){
+          if(await page.locator('#mobileLevels').isVisible()){
+            const label=await page.locator('#levels option').evaluateAll((opts,id)=>opts.find(o=>o.value===id).text,scene);
+            await page.locator('#mobileLevels').getByRole('button',{name:label,exact:true}).click();
+          }else await page.selectOption('#levels',scene);
+        }
         await page.waitForFunction(name=>document.querySelector('#view').dataset.scene===name && !document.querySelector('#levels').disabled,scene,{timeout:150000});
+        await page.waitForFunction(()=>document.documentElement.dataset.mode==='screen');
         const canvas=await page.locator('#view').boundingBox();assert.ok(canvas.width>0&&canvas.height>0);
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'La página desborda el ancho de pantalla');
         if(touch)await page.touchscreen.tap(canvas.width*.60,canvas.height*.46);
         else{await page.keyboard.down('w');await page.waitForTimeout(150);await page.keyboard.up('w');}
-        evidence.push({touch,scene,errors:[...new Set(errors)]});
+        const pose=heights.get(scene);
+        assert.ok(pose,'Falta la posición de pantalla en '+scene);
+        if(scene==='8ScenaCirugia'||scene==='Scena6.1 Quirofano'||scene==='11ScenaVaca'){
+          const floor={'8ScenaCirugia':.0293,'Scena6.1 Quirofano':.2093,'11ScenaVaca':-.008}[scene];
+          assert.ok(Math.abs(pose.eye-floor-1.6)<.12,'Altura de entrada incorrecta en '+scene+' '+pose.eye);
+        }
+        if(scene==='1ScenaOseo')assert.equal(pose.background,'Laboratorio');
+        if(scene!=='0ScenaMenu')assert.equal(await page.locator('#stick').isVisible(),touch);
+        if(process.env.WEB_TEST_SHOTS && ['0ScenaMenu','8ScenaCirugia','1ScenaOseo'].includes(scene))
+          await page.screenshot({path:require('node:path').join(process.env.WEB_TEST_SHOTS,(touch?'movil-':'pc-')+scene+'.png')});
+        evidence.push({touch,scene,...pose,errors:[...new Set(errors)]});
         console.log(touch?'Táctil':'Escritorio',scene);
       }
       failures.push(...errors);
@@ -49,6 +73,7 @@ const fs = require('node:fs');
       await page.waitForFunction(()=>!!document.querySelector('#view')?.dataset.scene,null,{timeout:180000});
       await page.locator('#xr').click();
       await page.waitForFunction(()=>!!window.questTest.activeSession,null,{timeout:30000});
+      await page.waitForFunction(()=>document.documentElement.dataset.mode==='xr',null,{timeout:30000});
       const result=await page.evaluate(async()=>{
         const session=window.questTest.activeSession,space=await session.requestReferenceSpace('local-floor');
         const views=await new Promise(resolve=>session.requestAnimationFrame((_,frame)=>resolve(frame.getViewerPose(space)?.views.length)));
@@ -61,6 +86,7 @@ const fs = require('node:fs');
         return {views,hands};
       });
       assert.equal(result.views,2);assert.ok(result.hands.includes('right')&&result.hands.includes('left'));
+      await page.waitForFunction(()=>document.documentElement.dataset.mode==='screen',null,{timeout:30000});
       evidence.push({device:'Quest 3 emulada',...result});
       await xr.close();
     }
