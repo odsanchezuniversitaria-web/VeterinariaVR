@@ -134,6 +134,7 @@ public static class VeterinariaBuild {
         const string screenFolder="Assets/VeterinariaWeb/Resources/VeterinariaPantalla";
         Directory.CreateDirectory(screenFolder);
         AssetDatabase.Refresh();
+        PrepareGalaxy(screenFolder,enabled);
         var lab=AssetDatabase.LoadAssetAtPath<Cubemap>("Assets/Scenes/Scena7 LaboratorioClinico/ReflectionProbe-0.exr");
         var skyShader=Shader.Find("Skybox/Cubemap");
         if(!lab || !skyShader)throw new InvalidOperationException("Falta el entorno del laboratorio para pantalla");
@@ -157,6 +158,38 @@ public static class VeterinariaBuild {
             locationPathName=Out,assetBundleManifestPath=Path.Combine(Content,"Content.manifest"),options=BuildOptions.StrictMode});
         if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Falló el reproductor WebGL: "+report.summary.result);
         File.WriteAllText(Path.Combine(Out,"actividades.json"),JsonUtility.ToJson(new Catalog{names=enabled.Select(Name).ToArray()}));
+    }
+    static void PrepareGalaxy(string folder,string[] scenes){
+        var passthrough=new List<string>();
+        foreach(string path in scenes){
+            var original=EditorSceneManager.OpenPreviewScene(path);
+            try{
+                bool manager=All<OVRManager>(original).Any(m=>m.isActiveAndEnabled && m.isInsightPassthroughEnabled);
+                bool layer=All<OVRPassthroughLayer>(original).Any(p=>p.isActiveAndEnabled && !p.hidden);
+                Debug.Log($"Entorno original {Name(path)} | sistema={manager} | capa={layer}");
+                if(manager && layer)passthrough.Add(Name(path));
+            }finally{EditorSceneManager.ClosePreviewScene(original);}
+        }
+        if(!passthrough.Contains("1ScenaOseo") || passthrough.Contains("0ScenaMenu"))
+            throw new InvalidOperationException("Revisar la detección de passthrough en las escenas originales");
+        string catalog=folder+"/EscenasPassthrough.txt";
+        File.WriteAllLines(catalog,passthrough);
+        AssetDatabase.ImportAsset(catalog);
+        const string imagePath="Assets/VeterinariaWeb/Entornos/ViaLactea.exr";
+        var importer=(TextureImporter)AssetImporter.GetAtPath(imagePath);
+        importer.textureShape=TextureImporterShape.Texture2D;
+        importer.sRGBTexture=false;importer.mipmapEnabled=true;importer.maxTextureSize=2048;
+        importer.wrapModeU=TextureWrapMode.Repeat;importer.wrapModeV=TextureWrapMode.Clamp;
+        importer.filterMode=FilterMode.Trilinear;
+        importer.SaveAndReimport();
+        var image=AssetDatabase.LoadAssetAtPath<Texture2D>(imagePath);
+        var shader=Shader.Find("Skybox/Panoramic");
+        if(!image || !shader)throw new InvalidOperationException("Falta el panorama estelar para pantalla");
+        string pathMat=folder+"/ViaLactea.mat";
+        var material=AssetDatabase.LoadAssetAtPath<Material>(pathMat);
+        if(!material){material=new Material(shader);AssetDatabase.CreateAsset(material,pathMat);}
+        material.SetTexture("_MainTex",image);material.SetFloat("_Exposure",1.1f);
+        EditorUtility.SetDirty(material);
     }
     static string Media(VideoClip clip) {
         if(!clip)return "";

@@ -84,7 +84,9 @@ public sealed partial class WebRig : MonoBehaviour {
         var forward=Vector3.ProjectOnPlane(eye.transform.forward,Vector3.up).normalized;
         walk=Vector2.ClampMagnitude(walk,1);
         var delta=(forward*walk.y+Vector3.Cross(Vector3.up,forward)*walk.x)*Time.unscaledDeltaTime*1.8f;
-        if(body)body.Move(delta);else transform.position+=delta;
+        if(vr || !screenView.MoveOnMenuPlatform(delta)){
+            if(body)body.Move(delta);else transform.position+=delta;
+        }
         if(originalEye) originalEye.SetPositionAndRotation(eye.transform.position,eye.transform.rotation);
         wasImmersive=vr;
     }

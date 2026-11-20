@@ -8,7 +8,11 @@ En PC, un clic selecciona el objeto o botón bajo el cursor. Mantener el clic pe
 
 En celular, un toque selecciona y un arrastre sobre el fondo gira la vista. En vertical, la portada muestra el menú 3D completo y una lista de actividades que se abren con un toque. Dentro de la escena, la palanca de la esquina inferior izquierda permite caminar mientras se toca la escena con otro dedo. El menú **Acciones** reúne los controles que ofrece la práctica actual.
 
-La cámara de pantalla utiliza la panorámica del laboratorio en las escenas con fondo genérico y conserva los cielos propios de otras actividades. Cuando hay suelo físico, la posición inicial se calcula sobre él y se comprueba que haya espacio para estar de pie. WebXR utiliza la cámara de la escena y los mandos del visor.
+En el menú de inicio de PC y celular se puede caminar hasta 2,5 metros desde la entrada. El recorrido comprueba que haya plataforma bajo los pies y se detiene antes de atravesar el panel. El brillo del menú se obtiene del perfil de posprocesado de la escena.
+
+Las prácticas que tienen el passthrough activo muestran la Vía Láctea en PC y celular. El panorama de 2048 × 1024 píxeles procede del mapa galáctico en alto rango dinámico de NASA/Goddard, elaborado con datos de Gaia. Las otras prácticas usan su cielo propio o la panorámica del laboratorio si tienen el fondo genérico. Al entrar en WebXR se recuperan el fondo y los ajustes de la cámara del visor. [Mapa original y créditos](https://svs.gsfc.nasa.gov/4851/)
+
+Cuando una práctica tiene suelo físico, la posición inicial se calcula sobre él y se comprueba que haya espacio para estar de pie.
 
 ## Archivos del proyecto
 

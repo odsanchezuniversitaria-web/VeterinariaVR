@@ -7,6 +7,8 @@ const fs = require('node:fs');
   const base = new URL(process.argv[2]);
   const evidence = [];
   const failures = [];
+  const galaxy=new Set(['7ScenaMusculo','4ScenaBoxeo','2ScenaCraneos','1ScenaOseo','6ScenaTodoRuleta',
+    '5ScenaCerebro','10ScenaReflejoPerro','3ScenaResortera']);
   const browser = await chromium.launch({executablePath:process.env.CHROME, headless:true,
     args:['--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
   try {
@@ -15,10 +17,12 @@ const fs = require('node:fs');
       const page=await context.newPage();
       const errors=[];
       const heights=new Map();
+      let menuPost=false;
       const recordError=message=>{if(!errors.includes(message)){console.error(message);errors.push(message);}};
       page.on('pageerror',e=>recordError(e.message));
       page.on('console',msg=>{
         const line=msg.text();
+        if(line.includes('Posprocesado del menú en pantalla activo'))menuPost=true;
         const pose=/Vista de pantalla (.+?) · pies (.+?) · ojos ([\d.,-]+) · fondo (.+)/.exec(line);
         if(pose)heights.set(pose[1],{feet:pose[2],eye:Number(pose[3].replace(',','.')),background:pose[4].trim()});
         if(process.env.WEB_TEST_LOG)console.log('Navegador',line.slice(0,750));
@@ -54,7 +58,8 @@ const fs = require('node:fs');
           const floor={'8ScenaCirugia':.0293,'Scena6.1 Quirofano':.2093,'11ScenaVaca':-.008}[scene];
           assert.ok(Math.abs(pose.eye-floor-1.6)<.12,'Altura de entrada incorrecta en '+scene+' '+pose.eye);
         }
-        if(scene==='1ScenaOseo')assert.equal(pose.background,'Laboratorio');
+        assert.equal(pose.background==='ViaLactea',galaxy.has(scene),'Fondo incorrecto en '+scene);
+        if(scene==='0ScenaMenu')assert.ok(menuPost,'El menú debe usar posprocesado en pantalla');
         if(scene!=='0ScenaMenu')assert.equal(await page.locator('#stick').isVisible(),touch);
         if(process.env.WEB_TEST_SHOTS && ['0ScenaMenu','8ScenaCirugia','1ScenaOseo'].includes(scene))
           await page.screenshot({path:require('node:path').join(process.env.WEB_TEST_SHOTS,(touch?'movil-':'pc-')+scene+'.png')});
@@ -88,6 +93,13 @@ const fs = require('node:fs');
       assert.equal(result.views,2);assert.ok(result.hands.includes('right')&&result.hands.includes('left'));
       await page.waitForFunction(()=>document.documentElement.dataset.mode==='screen',null,{timeout:30000});
       evidence.push({device:'Quest 3 emulada',...result});
+      await page.selectOption('#levels','1ScenaOseo');
+      await page.waitForFunction(()=>document.querySelector('#view').dataset.scene==='1ScenaOseo');
+      await page.locator('#xr').click();
+      await page.waitForFunction(()=>document.documentElement.dataset.mode==='xr');
+      await page.evaluate(()=>window.questTest.activeSession.end());
+      await page.waitForFunction(()=>document.documentElement.dataset.mode==='screen');
+      evidence.push({device:'Quest 3 emulada',scene:'1ScenaOseo',returnedToScreen:true});
       await xr.close();
     }
     assert.deepEqual([...new Set(failures)],[]);
