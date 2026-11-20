@@ -1,9 +1,20 @@
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using System.Collections.Generic;
+using System.Collections;
+using UnityEngine.Networking;
+using UnityEngine.UI;
 
 public sealed class WebScreenView {
     static HashSet<string> passthroughScenes;
+    static Material observatorio4K;
+    static Material observatorioTactil;
+    readonly WebRig owner;
+    Coroutine loadingPanorama;
+    UnityWebRequest panoramaRequest;
+    readonly Dictionary<RawImage,Texture> guideTextures=new Dictionary<RawImage,Texture>();
+    Renderer returnBox;
+    Material originalReturnMaterial;
     static readonly Vector3[] Footprint={Vector3.zero,Vector3.right,Vector3.left,Vector3.forward,Vector3.back};
     readonly bool isMenu;
     readonly UniversalAdditionalCameraData renderData;
@@ -27,6 +38,7 @@ public sealed class WebScreenView {
     bool visited;
     public bool Active { get; private set; }
     public WebScreenView(WebRig owner, CharacterController controller) {
+        this.owner=owner;
         rig=owner.transform; camera=owner.eye; body=controller;
         isMenu=rig.gameObject.scene.name=="0ScenaMenu";
         authoredBodyEnabled=body && body.enabled;
@@ -74,21 +86,103 @@ public sealed class WebScreenView {
             var catalog=Resources.Load<TextAsset>("VeterinariaPantalla/EscenasPassthrough");
             passthroughScenes=new HashSet<string>(catalog.text.Split(new[]{'\r','\n'},System.StringSplitOptions.RemoveEmptyEntries));
         }
-        sky.material=passthroughScenes.Contains(rig.gameObject.scene.name)?Resources.Load<Material>("VeterinariaPantalla/ViaLactea"):
+        bool observatorio=passthroughScenes.Contains(rig.gameObject.scene.name);
+        bool large=observatorio && UseLargePanorama() && SystemInfo.maxTextureSize>=4096;
+        sky.material=observatorio?ScreenLaboratory(large):
             defaultSky?Resources.Load<Material>("VeterinariaPantalla/Laboratorio"):sceneSky;
         sky.enabled=true;camera.clearFlags=CameraClearFlags.Skybox;
         if(isMenu && renderData){renderData.renderPostProcessing=true;Debug.Log("Posprocesado del menú en pantalla activo");}
         Active=true;
+        if(rig.gameObject.scene.name=="1ScenaOseo")ShowScreenGuide();
+        if(observatorio){
+            ReportPanorama();
+            if(!observatorio4K && large)
+                loadingPanorama=owner.StartCoroutine(LoadLargePanorama(sky.material));
+        }
         Debug.Log("Vista de pantalla "+rig.gameObject.scene.name+" · pies "+screenPosition.ToString("F2")+" · ojos "+camera.transform.position.y.ToString("F2")+" · fondo "+sky.material.name);
     }
     public void Leave() {
         screenPosition=rig.position;screenRotation=rig.rotation;
+        CancelPanorama();
+        foreach(var entry in guideTextures)if(entry.Key)entry.Key.texture=entry.Value;
+        if(returnBox){returnBox.sharedMaterial=originalReturnMaterial;returnBox=null;originalReturnMaterial=null;}
+        if(guideTextures.Count>0)Debug.Log("Guía ósea original restaurada para el visor");
+        guideTextures.Clear();
         sky.material=authoredSky;sky.enabled=skyWasEnabled;camera.clearFlags=authoredClear;
+        if(passthroughScenes.Contains(rig.gameObject.scene.name))
+            Debug.Log("Cámara de visor restaurada · "+rig.gameObject.scene.name+" · observatorio="+
+                (sky.enabled && sky.material && sky.material.name=="Observatorio"));
         if(isMenu && renderData)renderData.renderPostProcessing=authoredPost;
         SetPose(authoredPosition,authoredRotation);
         if(isMenu && body)body.enabled=authoredBodyEnabled;
         camera.transform.SetLocalPositionAndRotation(authoredEye,authoredEyeRotation);
         Active=false;
+    }
+    void ShowScreenGuide(){
+        var cutout=Resources.Load<Texture2D>("VeterinariaPantalla/GuiaOseaTransparente");
+        foreach(var image in UnityEngine.Object.FindObjectsByType<RawImage>(FindObjectsInactive.Include,FindObjectsSortMode.None)){
+            if(image.gameObject.scene!=rig.gameObject.scene || !image.texture || image.texture.name!="oseoGrandeCanino")continue;
+            guideTextures.Add(image,image.texture);
+            image.texture=cutout;
+        }
+        foreach(var root in rig.gameObject.scene.GetRootGameObjects()){
+            var zone=root.GetComponentInChildren<OseoVR.Oseo.ZonaDevolverHuesos>(true);
+            if(!zone || !zone.caja)continue;
+            returnBox=zone.caja;
+            originalReturnMaterial=returnBox.sharedMaterial;
+            returnBox.sharedMaterial=Resources.Load<Material>("VeterinariaPantalla/MarcoDevolucion");
+            break;
+        }
+        Debug.Log("Guía ósea transparente en pantalla · "+guideTextures.Count);
+    }
+    [System.Runtime.InteropServices.DllImport("__Internal")] static extern int VeterinariaUseLargePanorama();
+    static Material ScreenLaboratory(bool large){
+        if(large && observatorio4K)return observatorio4K;
+        if(!large && observatorioTactil)return observatorioTactil;
+        var panorama=Resources.Load<Material>("VeterinariaPantalla/Observatorio");
+        if(large)return panorama;
+        // Keep the edge of the viewing window in the narrower phone field of view.
+        observatorioTactil=new Material(panorama){name="Observatorio"};
+        observatorioTactil.SetFloat("_Rotation",8f);
+        return observatorioTactil;
+    }
+    static bool UseLargePanorama(){
+#if UNITY_WEBGL && !UNITY_EDITOR
+        return VeterinariaUseLargePanorama()!=0;
+#else
+        return !Application.isMobilePlatform;
+#endif
+    }
+    IEnumerator LoadLargePanorama(Material baseMaterial){
+        string url=Application.streamingAssetsPath+"/VeterinariaPantalla/observatorio-4k-v1.jpg";
+        var request=UnityWebRequestTexture.GetTexture(url,true);
+        panoramaRequest=request;
+        try{
+            yield return request.SendWebRequest();
+            loadingPanorama=null;
+            if(request.result!=UnityWebRequest.Result.Success){
+                Debug.LogWarning("Se mantiene la panorámica de 2K: "+request.error);
+                yield break;
+            }
+            if(!Active)yield break;
+            var texture=DownloadHandlerTexture.GetContent(request);
+            texture.wrapModeU=TextureWrapMode.Repeat;texture.wrapModeV=TextureWrapMode.Clamp;
+            texture.filterMode=FilterMode.Trilinear;
+            observatorio4K=new Material(baseMaterial){name="Observatorio",mainTexture=texture};
+            sky.material=observatorio4K;
+            ReportPanorama();
+        }finally{
+            if(panoramaRequest==request){panoramaRequest=null;request.Dispose();}
+        }
+    }
+    public void CancelPanorama(){
+        if(panoramaRequest!=null)panoramaRequest.Abort();
+        if(loadingPanorama!=null){owner.StopCoroutine(loadingPanorama);loadingPanorama=null;}
+        if(panoramaRequest!=null){panoramaRequest.Dispose();panoramaRequest=null;}
+    }
+    void ReportPanorama(){
+        var image=sky.material.mainTexture;
+        Debug.Log("Laboratorio panorámico · "+rig.gameObject.scene.name+" · "+image.width+"x"+image.height);
     }
     // The menu's overlapping scenery pushes a CharacterController sideways even on Move(0).
     // Follow only the actual platform, with enough space to navigate around the menu panels.

@@ -7,6 +7,9 @@ $template=Join-Path $unity 'Assets/WebGLTemplates/Veterinaria'
 New-Item -ItemType Directory -Path $adapter,$template -Force | Out-Null
 Copy-Item -Path "$SourceRoot/adapter/*" -Destination $adapter -Recurse -Force
 Copy-Item -LiteralPath "$SourceRoot/template/index.html" -Destination $template -Force
+$panorama=Join-Path $unity 'Assets/StreamingAssets/VeterinariaPantalla'
+New-Item -ItemType Directory -Path $panorama -Force | Out-Null
+Copy-Item -LiteralPath "$SourceRoot/streaming/observatorio-4k-v1.jpg" -Destination $panorama -Force
 $mrName='com.meta.xr.mrutilitykit'
 $mr=Join-Path "$unity/Packages" $mrName
 if(!(Test-Path -LiteralPath $mr)){

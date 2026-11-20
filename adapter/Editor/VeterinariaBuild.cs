@@ -134,7 +134,8 @@ public static class VeterinariaBuild {
         const string screenFolder="Assets/VeterinariaWeb/Resources/VeterinariaPantalla";
         Directory.CreateDirectory(screenFolder);
         AssetDatabase.Refresh();
-        PrepareGalaxy(screenFolder,enabled);
+        PrepareScreenEnvironment(screenFolder,enabled);
+        WebSkeletonGuide.Build(screenFolder);
         var lab=AssetDatabase.LoadAssetAtPath<Cubemap>("Assets/Scenes/Scena7 LaboratorioClinico/ReflectionProbe-0.exr");
         var skyShader=Shader.Find("Skybox/Cubemap");
         if(!lab || !skyShader)throw new InvalidOperationException("Falta el entorno del laboratorio para pantalla");
@@ -159,7 +160,7 @@ public static class VeterinariaBuild {
         if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Falló el reproductor WebGL: "+report.summary.result);
         File.WriteAllText(Path.Combine(Out,"actividades.json"),JsonUtility.ToJson(new Catalog{names=enabled.Select(Name).ToArray()}));
     }
-    static void PrepareGalaxy(string folder,string[] scenes){
+    static void PrepareScreenEnvironment(string folder,string[] scenes){
         var passthrough=new List<string>();
         foreach(string path in scenes){
             var original=EditorSceneManager.OpenPreviewScene(path);
@@ -175,20 +176,28 @@ public static class VeterinariaBuild {
         string catalog=folder+"/EscenasPassthrough.txt";
         File.WriteAllLines(catalog,passthrough);
         AssetDatabase.ImportAsset(catalog);
-        const string imagePath="Assets/VeterinariaWeb/Entornos/ViaLactea.exr";
+        const string imagePath="Assets/VeterinariaWeb/Entornos/Observatorio.jpg";
         var importer=(TextureImporter)AssetImporter.GetAtPath(imagePath);
         importer.textureShape=TextureImporterShape.Texture2D;
-        importer.sRGBTexture=false;importer.mipmapEnabled=true;importer.maxTextureSize=2048;
+        importer.sRGBTexture=true;importer.mipmapEnabled=true;importer.maxTextureSize=2048;
+        // Smooth gradients and the thin window rim should survive on mobile GPUs.
+        importer.textureCompression=TextureImporterCompression.Uncompressed;
         importer.wrapModeU=TextureWrapMode.Repeat;importer.wrapModeV=TextureWrapMode.Clamp;
         importer.filterMode=FilterMode.Trilinear;
         importer.SaveAndReimport();
         var image=AssetDatabase.LoadAssetAtPath<Texture2D>(imagePath);
         var shader=Shader.Find("Skybox/Panoramic");
-        if(!image || !shader)throw new InvalidOperationException("Falta el panorama estelar para pantalla");
-        string pathMat=folder+"/ViaLactea.mat";
+        if(!image || !shader || !File.Exists("Assets/StreamingAssets/VeterinariaPantalla/observatorio-4k-v1.jpg"))
+            throw new InvalidOperationException("Faltan las panorámicas del laboratorio");
+        string previous=folder+"/ViaLactea.mat";
+        if(AssetDatabase.LoadAssetAtPath<Material>(previous)){
+            string error=AssetDatabase.MoveAsset(previous,AssetDatabase.GenerateUniqueAssetPath(Generated+"/ViaLactea.mat"));
+            if(error.Length!=0)throw new IOException(error);
+        }
+        string pathMat=folder+"/Observatorio.mat";
         var material=AssetDatabase.LoadAssetAtPath<Material>(pathMat);
         if(!material){material=new Material(shader);AssetDatabase.CreateAsset(material,pathMat);}
-        material.SetTexture("_MainTex",image);material.SetFloat("_Exposure",1.1f);
+        material.SetTexture("_MainTex",image);material.SetFloat("_Exposure",1f);
         EditorUtility.SetDirty(material);
     }
     static string Media(VideoClip clip) {

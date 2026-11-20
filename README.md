@@ -10,7 +10,9 @@ En celular, un toque selecciona y un arrastre sobre el fondo gira la vista. En v
 
 En el menú de inicio de PC y celular se puede caminar hasta 2,5 metros desde la entrada. El recorrido comprueba que haya plataforma bajo los pies y se detiene antes de atravesar el panel. El brillo del menú se obtiene del perfil de posprocesado de la escena.
 
-Las prácticas que tienen el passthrough activo muestran la Vía Láctea en PC y celular. El panorama de 2048 × 1024 píxeles procede del mapa galáctico en alto rango dinámico de NASA/Goddard, elaborado con datos de Gaia. Las otras prácticas usan su cielo propio o la panorámica del laboratorio si tienen el fondo genérico. Al entrar en WebXR se recuperan el fondo y los ajustes de la cámara del visor. [Mapa original y créditos](https://svs.gsfc.nasa.gov/4851/)
+Las ocho prácticas con passthrough muestran en pantalla un laboratorio de paredes curvas, luz indirecta y ventanales de estrellas. La iluminación se hornea con Blender. El celular usa la panorámica de 2048 × 1024. En PC se muestra de inmediato esa misma imagen y se carga una vez la de 4096 × 2048 al abrir una práctica que la utiliza. Si la red falla, la vista de 2K sigue disponible.
+
+En Sistema óseo, la cámara de pantalla muestra la fotografía del esqueleto con transparencia. Las esquinas azules señalan dónde devolver un hueso. La zona se ilumina en verde cuando entra una pieza. Al entrar en WebXR se recuperan la fotografía, el aspecto de la zona de devolución y los ajustes originales de la cámara del visor.
 
 Cuando una práctica tiene suelo físico, la posición inicial se calcula sobre él y se comprueba que haya espacio para estar de pie.
 

@@ -33,6 +33,7 @@ public sealed partial class WebRig : MonoBehaviour {
     UniversalAdditionalCameraData renderData;
     void Awake(){body=GetComponent<CharacterController>();WebLegacyInput.rig=this;renderData=eye.GetComponent<UniversalAdditionalCameraData>();}
     public void EnterVR(){if(WebXRManager.Instance)WebXRManager.Instance.ToggleVR();}
+    void OnDestroy(){screenView?.CancelPanorama();}
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaSceneReady(string scene);
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaScreenMode(int flat);
     static void ReportMode(bool flat){

@@ -7,8 +7,9 @@ const fs = require('node:fs');
   const base = new URL(process.argv[2]);
   const evidence = [];
   const failures = [];
-  const galaxy=new Set(['7ScenaMusculo','4ScenaBoxeo','2ScenaCraneos','1ScenaOseo','6ScenaTodoRuleta',
+  const observatoryScenes=new Set(['7ScenaMusculo','4ScenaBoxeo','2ScenaCraneos','1ScenaOseo','6ScenaTodoRuleta',
     '5ScenaCerebro','10ScenaReflejoPerro','3ScenaResortera']);
+  const authoredSkies={'escena resortera':'SkyboxGradient','11ScenaVaca':'05-Country Road_sdr','17ScenaVacaItis':'MatSkyboxGranja'};
   const browser = await chromium.launch({executablePath:process.env.CHROME, headless:true,
     args:['--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
   try {
@@ -17,11 +18,19 @@ const fs = require('node:fs');
       const page=await context.newPage();
       const errors=[];
       const heights=new Map();
+      const panoramaSizes=new Map();
+      const hdRequests=[];
+      let guideCount=0;
+      page.on('request',r=>{if(r.url().endsWith('/observatorio-4k-v1.jpg'))hdRequests.push(r.url());});
       let menuPost=false;
       const recordError=message=>{if(!errors.includes(message)){console.error(message);errors.push(message);}};
       page.on('pageerror',e=>recordError(e.message));
       page.on('console',msg=>{
         const line=msg.text();
+        const panorama=/Laboratorio panorámico · (.+?) · (\d+x\d+)/.exec(line);
+        if(panorama)panoramaSizes.set(panorama[1],panorama[2]);
+        const guide=/Guía ósea transparente en pantalla · (\d+)/.exec(line);
+        if(guide)guideCount=Number(guide[1]);
         if(line.includes('Posprocesado del menú en pantalla activo'))menuPost=true;
         const pose=/Vista de pantalla (.+?) · pies (.+?) · ojos ([\d.,-]+) · fondo (.+)/.exec(line);
         if(pose)heights.set(pose[1],{feet:pose[2],eye:Number(pose[3].replace(',','.')),background:pose[4].trim()});
@@ -58,7 +67,35 @@ const fs = require('node:fs');
           const floor={'8ScenaCirugia':.0293,'Scena6.1 Quirofano':.2093,'11ScenaVaca':-.008}[scene];
           assert.ok(Math.abs(pose.eye-floor-1.6)<.12,'Altura de entrada incorrecta en '+scene+' '+pose.eye);
         }
-        assert.equal(pose.background==='ViaLactea',galaxy.has(scene),'Fondo incorrecto en '+scene);
+        assert.equal(pose.background==='Observatorio',observatoryScenes.has(scene),'Fondo incorrecto en '+scene);
+        if(!observatoryScenes.has(scene))assert.equal(pose.background,authoredSkies[scene]||'Laboratorio');
+        if(observatoryScenes.has(scene)){
+          const size=touch?'2048x1024':'4096x2048';
+          if(panoramaSizes.get(scene)!==size)
+            await page.waitForEvent('console',{predicate:m=>m.text().includes('Laboratorio panorámico · '+scene+' · '+size),timeout:30000});
+          pose.panorama=panoramaSizes.get(scene);
+          assert.equal(pose.panorama,size);
+        }
+        if(scene==='1ScenaOseo'){
+          assert.ok(guideCount>0,'Debe mostrarse la fotografía con transparencia');
+          pose.guideCount=guideCount;
+          const frame=await page.locator('#view').screenshot();
+          pose.guideBackdrop=await page.evaluate(async png=>{
+            const photo=new Image();photo.src='data:image/png;base64,'+png;await photo.decode();
+            const sample=document.createElement('canvas');sample.width=photo.width;sample.height=photo.height;
+            const ctx=sample.getContext('2d');ctx.drawImage(photo,0,0);
+            // Central area where the original photo and the return trigger covered the wall.
+            const data=ctx.getImageData(photo.width*.48,photo.height*.49,photo.width*.30,photo.height*.18).data;
+            let black=0,blue=0;
+            for(let i=0;i<data.length;i+=4){
+              if(Math.max(data[i],data[i+1],data[i+2])<16)black++;
+              if(data[i+2]-data[i]>56 && data[i+2]-data[i+1]>20)blue++;
+            }
+            return {black:black*4/data.length,blue:blue*4/data.length};
+          },frame.toString('base64'));
+          assert.ok(pose.guideBackdrop.black<.10 && pose.guideBackdrop.blue<.06,
+            'La fotografía y la zona de devolución deben permitir ver el laboratorio');
+        }
         if(scene==='0ScenaMenu')assert.ok(menuPost,'El menú debe usar posprocesado en pantalla');
         if(scene!=='0ScenaMenu')assert.equal(await page.locator('#stick').isVisible(),touch);
         if(process.env.WEB_TEST_SHOTS && ['0ScenaMenu','8ScenaCirugia','1ScenaOseo'].includes(scene))
@@ -66,6 +103,7 @@ const fs = require('node:fs');
         evidence.push({touch,scene,...pose,errors:[...new Set(errors)]});
         console.log(touch?'Táctil':'Escritorio',scene);
       }
+      assert.equal(hdRequests.length,touch?0:1,'La versión 4K se debe descargar una vez por sesión de PC');
       failures.push(...errors);
       await context.close();
     }
@@ -74,6 +112,13 @@ const fs = require('node:fs');
       await xr.addInitScript({content:fs.readFileSync(process.env.XR_TEST_BUNDLE,'utf8')+
         '\nwindow.questTest=new IWER.XRDevice(IWER.metaQuest3);window.questTest.installRuntime({forceInstall:true});'});
       const page=await xr.newPage();
+      let guideRestored=false,cameraRestored=false,flatGuideAppearances=0;
+      page.on('console',m=>{
+        const line=m.text();
+        if(line.includes('Guía ósea original restaurada para el visor'))guideRestored=true;
+        if(line.includes('Cámara de visor restaurada · 1ScenaOseo · observatorio=False'))cameraRestored=true;
+        if(/Guía ósea transparente en pantalla · [1-9]/.test(line))flatGuideAppearances++;
+      });
       await page.goto(base.href,{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>!!document.querySelector('#view')?.dataset.scene,null,{timeout:180000});
       await page.locator('#xr').click();
@@ -99,7 +144,8 @@ const fs = require('node:fs');
       await page.waitForFunction(()=>document.documentElement.dataset.mode==='xr');
       await page.evaluate(()=>window.questTest.activeSession.end());
       await page.waitForFunction(()=>document.documentElement.dataset.mode==='screen');
-      evidence.push({device:'Quest 3 emulada',scene:'1ScenaOseo',returnedToScreen:true});
+      assert.ok(guideRestored && cameraRestored && flatGuideAppearances>=2,'La guía y el fondo deben corresponder al modo activo');
+      evidence.push({device:'Quest 3 emulada',scene:'1ScenaOseo',returnedToScreen:true,guideRestored,cameraRestored});
       await xr.close();
     }
     assert.deepEqual([...new Set(failures)],[]);
