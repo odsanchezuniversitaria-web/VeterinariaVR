@@ -9,6 +9,9 @@ using Oculus.Interaction;
 using WebXR;
 
 public sealed class WebRig : MonoBehaviour {
+    static Material[] materialsForDynamicShaders;
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void CargarShaders(){ materialsForDynamicShaders=Resources.LoadAll<Material>("VeterinariaShaders"); }
     public Camera eye;
     public Transform originalEye, originalLeft, originalRight;
     public WebXRController left, right;

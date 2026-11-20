@@ -28,6 +28,9 @@ foreach($dir in @('Build','Media','StreamingAssets','Content')){
         }
     }else{Get-ChildItem -LiteralPath "$src/$dir" | Copy-Item -Destination $target -Recurse}
 }
+$framework = Get-ChildItem -LiteralPath "$Destination/Build" -Filter '*.framework.js.unityweb' -File
+if (@($framework).Count -ne 1) { throw 'Falta el archivo de ejecución de Unity.' }
+& "$PSScriptRoot/prepare-web-audio.ps1" -Framework $framework.FullName
 New-Item -ItemType File -Path "$Destination/.nojekyll" | Out-Null
 $built=Get-ChildItem -LiteralPath $Destination -File -Recurse
 $tooBig=$built|Where-Object Length -ge 100MB

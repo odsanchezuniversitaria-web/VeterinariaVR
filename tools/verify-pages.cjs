@@ -6,6 +6,7 @@ const fs = require('node:fs');
 (async()=>{
   const base = new URL(process.argv[2]);
   const evidence = [];
+  const failures = [];
   const browser = await chromium.launch({executablePath:process.env.CHROME, headless:true,
     args:['--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
   try {
@@ -18,7 +19,7 @@ const fs = require('node:fs');
       page.on('console',msg=>{
         const line=msg.text();
         if(process.env.WEB_TEST_LOG)console.log('Navegador',line.slice(0,750));
-        if(/(?:DllNotFound|EntryPointNotFound|MissingMethod|NullReference)Exception|out of memory|memory access out of bounds|WebGL context lost|Unable to parse Build/i.test(line))
+        if(/\b\w+Exception:|out of memory|memory access out of bounds|WebGL context lost|Unable to parse Build/i.test(line))
           recordError(line.slice(0,500));
       });
       page.on('response',r=>{if(r.url().startsWith(base.href)&&r.status()>=400)recordError(r.status()+' '+r.url());});
@@ -36,13 +37,13 @@ const fs = require('node:fs');
         evidence.push({touch,scene,errors:[...new Set(errors)]});
         console.log(touch?'Táctil':'Escritorio',scene);
       }
-      assert.deepEqual(errors,[]);
+      failures.push(...errors);
       await context.close();
     }
     if(process.env.XR_TEST_BUNDLE){
       const xr=await browser.newContext({viewport:{width:1100,height:720}});
       await xr.addInitScript({content:fs.readFileSync(process.env.XR_TEST_BUNDLE,'utf8')+
-        '\nwindow.questTest=new IWER.XRDevice(IWER.metaQuest3);window.questTest.installRuntime();'});
+        '\nwindow.questTest=new IWER.XRDevice(IWER.metaQuest3);window.questTest.installRuntime({forceInstall:true});'});
       const page=await xr.newPage();
       await page.goto(base.href,{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>!!document.querySelector('#view')?.dataset.scene,null,{timeout:180000});
@@ -63,6 +64,7 @@ const fs = require('node:fs');
       evidence.push({device:'Quest 3 emulada',...result});
       await xr.close();
     }
+    assert.deepEqual([...new Set(failures)],[]);
   } finally {
     if(process.argv[3])fs.writeFileSync(process.argv[3],JSON.stringify(evidence,null,2));
     await browser.close();

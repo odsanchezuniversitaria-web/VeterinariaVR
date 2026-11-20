@@ -1,1 +1,7 @@
-<linker><assembly fullname="Assembly-CSharp" preserve="all"/></linker>
+<linker>
+  <assembly fullname="Assembly-CSharp" preserve="all"/>
+  <assembly fullname="Oculus.Interaction">
+    <type fullname="Oculus.Interaction.IInteractableView" preserve="all"/>
+    <type fullname="Oculus.Interaction.InteractableUnityEventWrapper" preserve="all"/>
+  </assembly>
+</linker>

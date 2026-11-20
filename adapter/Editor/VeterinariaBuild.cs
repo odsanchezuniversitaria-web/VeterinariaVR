@@ -131,6 +131,16 @@ public static class VeterinariaBuild {
         SetupXR();BuildPlayer(gates,enabled);
     }
     static void BuildPlayer(string[] gates,string[] enabled){
+        const string shadersFolder="Assets/VeterinariaWeb/Resources/VeterinariaShaders";
+        Directory.CreateDirectory(shadersFolder);
+        AssetDatabase.Refresh();
+        foreach(var shaderName in new[]{"UI/RoundedCorners/RoundedCorners","UI/RoundedCorners/IndependentRoundedCorners","Sprites/Default","UI/Default","Unlit/Color","Universal Render Pipeline/Simple Lit","Universal Render Pipeline/Unlit"}){
+            var shader=Shader.Find(shaderName);
+            if(!shader)throw new InvalidOperationException("Shader de práctica ausente: "+shaderName);
+            var path=shadersFolder+"/"+shaderName.Replace('/','-')+".mat";
+            if(!AssetDatabase.LoadAssetAtPath<Material>(path))AssetDatabase.CreateAsset(new Material(shader),path);
+        }
+        AssetDatabase.SaveAssets();
         PlayerSettings.WebGL.debugSymbolMode=WebGLDebugSymbolMode.External;
         var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=gates,target=BuildTarget.WebGL,
             locationPathName=Out,assetBundleManifestPath=Path.Combine(Content,"Content.manifest"),options=BuildOptions.StrictMode});
@@ -157,6 +167,24 @@ public static class VeterinariaBuild {
     }
     static void AdaptScene(Scene scene){
         AdaptVideos(All<VideoInteractivoVeterinaria>(scene),All<VideoPlayer>(scene));
+        var videos=All<VideoPlayer>(scene).ToArray();
+        foreach(var control in All<PausePlayVideo>(scene).Where(c=>!c.videoPlayer)){
+            control.videoPlayer=control.GetComponentInParent<VideoPlayer>() ?? control.GetComponentInChildren<VideoPlayer>(true) ??
+                videos.OrderBy(v=>(v.transform.position-control.transform.position).sqrMagnitude).FirstOrDefault();
+        }
+        foreach(var grab in All<Oculus.Interaction.GrabInteractable>(scene).Where(g=>!g.Rigidbody))
+            grab.InjectRigidbody(GrabBody(grab));
+        foreach(var hand in All<Oculus.Interaction.HandGrab.HandGrabInteractable>(scene).Where(g=>!g.Rigidbody))
+            hand.InjectRigidbody(GrabBody(hand));
+        foreach(var wrapper in All<Oculus.Interaction.InteractableUnityEventWrapper>(scene)){
+            var data=new SerializedObject(wrapper);
+            var target=data.FindProperty("_interactableView");
+            if(target.objectReferenceValue is Oculus.Interaction.IInteractableView)continue;
+            var view=wrapper.GetComponents<MonoBehaviour>().Concat(wrapper.GetComponentsInChildren<MonoBehaviour>(true))
+                .Concat(wrapper.GetComponentsInParent<MonoBehaviour>(true)).FirstOrDefault(m=>m is Oculus.Interaction.IInteractableView);
+            if(view){target.objectReferenceValue=view;data.ApplyModifiedPropertiesWithoutUndo();}
+            else wrapper.enabled=false; // WebRig still invokes the stored UnityEvents directly for a ray selection.
+        }
         var oldCamera=All<Camera>(scene).FirstOrDefault(c=>c.CompareTag("MainCamera")) ?? All<Camera>(scene).FirstOrDefault();
         var rig=All<OVRCameraRig>(scene).FirstOrDefault(r=>r.gameObject.activeInHierarchy);
         var start=rig?rig.transform.position:oldCamera?oldCamera.transform.position-Vector3.up*1.6f:Vector3.zero;
@@ -209,6 +237,13 @@ public static class VeterinariaBuild {
         var sphere=palm.AddComponent<SphereCollider>();sphere.radius=.045f;sphere.isTrigger=true;
         var rb=palm.AddComponent<Rigidbody>();rb.isKinematic=true;rb.useGravity=false;
         return palm.transform;
+    }
+    static Rigidbody GrabBody(Component grab){
+        var body=grab.GetComponentInParent<Rigidbody>() ?? grab.GetComponentInChildren<Rigidbody>(true);
+        if(body)return body;
+        var collider=grab.GetComponentInParent<Collider>() ?? grab.GetComponentInChildren<Collider>(true);
+        var owner=collider?collider.gameObject:grab.gameObject;
+        body=owner.AddComponent<Rigidbody>();body.isKinematic=true;return body;
     }
     static LineRenderer RayVisual(Transform hand){
         string path=Generated+"/Puntero.mat";

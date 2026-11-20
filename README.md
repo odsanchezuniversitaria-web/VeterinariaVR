@@ -23,7 +23,11 @@ Para reconstruir desde las fuentes de OseoVr4, los cinco instrumentos de 3ds Max
 
 ## Nexus
 
-La ruta de publicación prevista es `https://odsanchezuniversitaria-web.github.io/VeterinariaVR/`. Un enlace de Nexus puede abrirla como página de nivel superior. Para integrarla en un iframe, el contenedor debe permitir `xr-spatial-tracking` y `fullscreen`. El acceso inmersivo empieza con un gesto del usuario sobre **Entrar en VR**.
+[Abrir VeterinariaVR en GitHub Pages](https://odsanchezuniversitaria-web.github.io/VeterinariaVR/)
 
-La rama de desarrollo contiene la integración. La distribución web se publica por separado al completar la validación.
+Nexus puede abrir esa dirección con un enlace directo. Para integrarla dentro de un iframe, el contenedor debe permitir `xr-spatial-tracking` y `fullscreen`. En un visor compatible, **Entrar en VR** inicia la sesión inmersiva.
+
+La rama `main` contiene los adaptadores y las herramientas de compilación. La rama `gh-pages` contiene la aplicación web. El reproductor descarga los recursos a medida que se abren las escenas.
+
+La prueba de distribución recorrió las 18 escenas en Chrome de escritorio y en pantalla táctil emulada. Una Quest 3 emulada abrió una sesión WebXR con vista estereoscópica y dos mandos. Los 15 vídeos se abrieron y empezaron a reproducirse en Chrome. La comprobación en un visor físico sigue pendiente.
 

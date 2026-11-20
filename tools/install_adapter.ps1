@@ -124,6 +124,8 @@ $old=[IO.File]::ReadAllText($net)
 $new=$old.Replace('soporte.AddComponent<NetworkSceneManagerDefault>()','soporte.AddComponent<WebNetworkScenes>()').Replace('SceneRef.FromIndex(escenaActual.buildIndex)','gestorEscena.GetSceneRef(escenaActual.path)')
 if($new -cne $old){[IO.File]::WriteAllText($net,$new,[Text.UTF8Encoding]::new($false))}
 foreach($change in @(
+    @('SlingshotTrajectoryPredictor.cs','new Material(Shader.Find("Standard"))','new Material(Shader.Find("Universal Render Pipeline/Simple Lit"))'),
+    @('Scripts/pausaVideo.cs','if (isPaused)','if (!videoPlayer) return; if (isPaused)'),
     @('MostrarPanelConBotonX.cs','if (dispositivoIzquierdo.TryGetFeatureValue(CommonUsages.primaryButton, out bool xPresionado))','bool xPresionado = WebLegacyInput.GetDown(OVRInput.Button.Three); if (WebLegacyInput.rig || dispositivoIzquierdo.TryGetFeatureValue(CommonUsages.primaryButton, out xPresionado))'),
     @('OcultarPanelLetra.cs','bool botonActualmentePresionado = EstaBotonPresionado(dispositivo);','bool botonActualmentePresionado = WebLegacyInput.rig ? WebLegacyInput.ReadPanelButton(manoAUsar, botonAUsar) : EstaBotonPresionado(dispositivo);'),
     @('ApareceObjPanel.cs','bool pulsado = false;','bool pulsado = WebLegacyInput.GetDown(OVRInput.Button.Four) || WebLegacyInput.GetDown(OVRInput.Button.Two);'),
