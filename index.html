@@ -1,16 +1,65 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>VeterinariaVR · OseoVr4</title><style>
-*{box-sizing:border-box}body{margin:0;background:#102327;color:white;font:16px system-ui}canvas{display:block;width:100vw;height:100dvh;touch-action:none}aside,nav{position:fixed;padding:10px;z-index:1}aside{top:1rem;left:1rem;background:#102327ee;border-radius:8px}nav{bottom:0;right:0;display:flex;gap:5px}button{background:#e1f8eb;color:#142c29;border:0;border-radius:6px;padding:.65rem;min-height:44px}progress{display:block;margin-top:.5rem}#aux{display:none}@media(pointer:coarse){#aux{display:inline-flex;gap:4px}}
-nav{max-width:100vw;justify-content:flex-end;align-items:end;flex-wrap:wrap;padding-bottom:max(10px,env(safe-area-inset-bottom))}#levels{max-width:43vw;min-height:44px}#aux button{min-width:40px;padding:.45rem}aside{max-width:calc(100vw - 2rem)}@media(pointer:coarse){#aux{order:-1;justify-content:flex-end;flex-basis:100%}}
-</style></head><body><canvas id="view" tabindex="0" aria-label="Escena veterinaria interactiva"></canvas><aside id="status" role="status">Cargando VeterinariaVR<progress max="1" value="0"></progress></aside><nav><select id="levels" disabled aria-label="Cambiar actividad"><option>Actividades</option></select><span id="aux"><button data-act="SwapHand">Mano</button><button data-act="ActionA">A</button><button data-act="ActionB">B</button><button data-act="ActionX">X</button><button data-act="ActionY">Y</button><button data-act="ActionMenu">Menú</button></span><button id="help">Controles</button><button id="xr" hidden>Entrar en VR</button></nav>
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VeterinariaVR · OseoVr4</title><style>
+*{box-sizing:border-box}body{margin:0;background:#152e32;color:#f3faf8;font:15px/1.45 system-ui}canvas{display:block;width:100vw;height:100dvh;touch-action:none}
+[hidden]{display:none!important}button,select{font:inherit;color:#173c39;background:#f1f7f5;border:1px solid #c3d8d2;border-radius:8px;min-height:44px;padding:.45rem .75rem;cursor:pointer}button:focus-visible,select:focus-visible{outline:3px solid #55d7b7;outline-offset:2px}button:active{background:#c3ece0}
+aside,.tray{position:fixed;z-index:2;background:#183c3bf5;border-radius:12px;box-shadow:0 3px 18px #00181738}
+aside{top:max(12px,env(safe-area-inset-top));left:12px;padding:12px 16px;max-width:min(390px,calc(100vw - 24px))}progress{display:block;width:100%;margin-top:8px}
+nav{position:fixed;z-index:2;bottom:max(10px,env(safe-area-inset-bottom));right:max(10px,env(safe-area-inset-right));display:flex;justify-content:flex-end;flex-wrap:wrap;gap:5px;max-width:calc(100vw - 20px)}#levels{max-width:190px}#xr{color:white;background:#20645a}
+.tray{position:absolute;bottom:calc(100% + 6px);right:0;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;padding:8px;width:max-content;max-width:100%}
+#stick{display:none;position:fixed;bottom:max(20px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left));width:82px;height:82px;border-radius:50%;border:1px solid #cfede0b8;background:#173b3ca8;touch-action:none;user-select:none;align-items:center;justify-content:center}#knob{display:block;width:34px;height:34px;border-radius:50%;border:2px solid #e2f8f0;background:#b7dfd5be;pointer-events:none}
+@media(pointer:coarse){#stick{display:flex}nav{max-width:calc(100vw - 118px)}#levels{max-width:100%;flex-basis:100%}button,select{font-size:14px;padding:.4rem .6rem}}
+@media(pointer:coarse) and (orientation:landscape){#levels{flex-basis:auto;max-width:170px}}
+#mobileLevels{display:none}
+@media(pointer:coarse) and (orientation:portrait){
+  html[data-mode=screen][data-scene="0ScenaMenu"]{--menu-height:min(50dvh,94vw)}
+  html[data-mode=screen][data-scene="0ScenaMenu"] #view{height:var(--menu-height)}
+  html[data-mode=screen][data-scene="0ScenaMenu"] #mobileLevels{position:fixed;inset:var(--menu-height) 0 calc(68px + env(safe-area-inset-bottom));display:block;overflow:auto;padding:12px 14px 16px;background:#152e32;overscroll-behavior:contain}
+  #mobileLevels h1{font-size:16px;font-weight:600;margin:0 0 10px;color:#d9efea}
+  #mobileLevels .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  #mobileLevels button{text-align:left;background:#254447;color:#f2faf7;border-color:#3d6264}
+  html[data-mode=screen][data-scene="0ScenaMenu"] #levels,html[data-mode=screen][data-scene="0ScenaMenu"] #stick{display:none}
+}
+html[data-mode=xr] nav,html[data-mode=xr] aside,html[data-mode=xr] #stick{display:none}
+</style></head><body>
+<canvas id="view" tabindex="0" aria-label="Escena veterinaria interactiva"></canvas>
+<aside id="status" role="status">Cargando VeterinariaVR<progress max="1" value="0"></progress></aside>
+<section id="mobileLevels" aria-labelledby="activitiesTitle"><h1 id="activitiesTitle">Actividades</h1><div class="choices"></div></section>
+<div id="stick" aria-label="Palanca táctil de movimiento" hidden><span id="knob"></span></div>
+<nav aria-label="Controles de la práctica">
+<select id="levels" disabled aria-label="Cambiar actividad"><option>Actividades</option></select>
+<button id="actions" hidden aria-expanded="false" aria-controls="tools">Acciones</button><div class="tray" id="tools" hidden></div>
+<button id="help" aria-expanded="false">Ayuda</button><button id="xr" hidden>Entrar en VR</button></nav>
 <script>
-const view=document.querySelector('#view'),statusBox=document.querySelector('#status'),vr=document.querySelector('#xr');let player,helpOpen=false;
-const levels=document.querySelector('#levels');
-fetch('./actividades.json').then(r=>r.json()).then(({names})=>{levels.replaceChildren(...names.map(s=>new Option(s,s)));if(view.dataset.scene)levels.value=view.dataset.scene}).catch(()=>levels.hidden=true);
-document.addEventListener('veterinaria-scene',e=>{view.dataset.scene=e.detail;levels.disabled=false;levels.value=e.detail;statusBox.hidden=true});
-levels.onchange=()=>{if(!player)return;levels.disabled=true;statusBox.textContent='Abriendo '+levels.value;statusBox.hidden=false;player.SendMessage('VeterinariaWeb','OpenLevel',levels.value)};
-document.querySelector('#help').onclick=()=>{helpOpen=!helpOpen;statusBox.hidden=!helpOpen;if(helpOpen)statusBox.textContent='PC · Camina con WASD, mira con arrastre derecho y selecciona con clic. Tab cambia de mano. E/Q representan A/B y X/Y corresponden al mando izquierdo. P abre el menú. Celular · Camina desde la esquina inferior izquierda, arrastra para mirar y toca para seleccionar. VR · Usa el gatillo y el stick izquierdo.'};
-view.oncontextmenu=e=>e.preventDefault();document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>player?.SendMessage('VeterinariaWeb',b.dataset.act));
-vr.onclick=()=>player?.SendMessage('VeterinariaWeb','EnterVR');function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
+const el=id=>document.getElementById(id),view=el('view'),statusBox=el('status'),vr=el('xr'),levels=el('levels'),tools=el('tools'),actions=el('actions'),help=el('help'),stick=el('stick'),knob=el('knob');
+const labels={prev:'Paso anterior',next:'Paso siguiente',equipment:'Equipo de protección',panel:'Mostrar u ocultar panel',legend:'Mostrar u ocultar leyenda',sign:'Ver indicaciones',rope:'Mover cuerda',pause:'Pausar o continuar',network:'Alternar multijugador'};
+const titles=['Menú','Músculos','Boxeo','Cráneos','Sistema óseo','Ruleta','Cerebro','Reflejos del perro','Quirófano','Laboratorio clínico','Resortera','Práctica de resortera','Cirugía','Vaca','Anatomía','Laminitis','Transición','Elementos de protección'];
+let player,activeFinger=null;
+function closeActions(){tools.hidden=true;actions.setAttribute('aria-expanded','false')}
+function closeHelp(){help.setAttribute('aria-expanded','false');statusBox.hidden=true}
+function move(x,y){player?.SendMessage('VeterinariaWeb','SetWalk',x.toFixed(3)+','+y.toFixed(3))}
+function stopStick(){if(activeFinger!==null){activeFinger=null;move(0,0)}knob.style.transform=''}
+function updateStick(e){const b=stick.getBoundingClientRect(),r=b.width*.32,dx=(e.clientX-b.left-b.width/2)/r,dy=(e.clientY-b.top-b.height/2)/r,k=Math.max(1,Math.hypot(dx,dy));move(dx/k,-dy/k);knob.style.transform='translate('+dx*r/k+'px,'+dy*r/k+'px)'}
+stick.onpointerdown=e=>{if(activeFinger!==null)return;e.preventDefault();activeFinger=e.pointerId;stick.setPointerCapture(e.pointerId);updateStick(e)};
+stick.onpointermove=e=>{if(e.pointerId===activeFinger)updateStick(e)};
+stick.onpointerup=stick.onpointercancel=stick.onlostpointercapture=e=>{if(e.pointerId===activeFinger)stopStick()};window.addEventListener('blur',stopStick);
+fetch('./actividades.json').then(r=>r.json()).then(({names})=>{const titleByScene={'0ScenaMenu':0,'7ScenaMusculo':1,'4ScenaBoxeo':2,'2ScenaCraneos':3,'1ScenaOseo':4,'6ScenaTodoRuleta':5,'5ScenaCerebro':6,'10ScenaReflejoPerro':7,'Scena6.1 Quirofano':8,'7ScenaLaboratorioClinico':9,'escena resortera':10,'3ScenaResortera':11,'8ScenaCirugia':12,'11ScenaVaca':13,'13ScenaAnatomia':14,'17ScenaVacaItis':15,'EscenaPuente':16,'9ScenaElementoP':17};levels.replaceChildren(...names.map(s=>new Option(titles[titleByScene[s]]||s,s)));if(view.dataset.scene)levels.value=view.dataset.scene}).catch(()=>levels.hidden=true);
+function populateActivities(){
+  const choices=document.querySelector('#mobileLevels .choices');
+  const buttons=Array.from(levels.options).filter(o=>o.value!=='0ScenaMenu').map(o=>{
+    const b=document.createElement('button');b.textContent=o.text;
+    b.onclick=()=>{if(levels.disabled)return;levels.value=o.value;levels.onchange()};
+    return b;
+  });
+  choices.replaceChildren(...buttons);
+}
+new MutationObserver(populateActivities).observe(levels,{childList:true});
+document.addEventListener('veterinaria-scene',e=>{view.dataset.scene=document.documentElement.dataset.scene=e.detail;levels.disabled=false;levels.value=e.detail;closeHelp();closeActions();stopStick();stick.hidden=false});
+document.addEventListener('veterinaria-actions',e=>{tools.replaceChildren();for(const id of e.detail.split(',').filter(x=>labels[x])){const b=document.createElement('button');b.textContent=labels[id];b.onclick=()=>{player?.SendMessage('VeterinariaWeb','ScreenAction',id);closeActions();view.focus()};tools.append(b)}actions.hidden=!tools.childElementCount});
+levels.onchange=()=>{if(!player)return;stopStick();closeActions();closeHelp();actions.hidden=true;stick.hidden=true;levels.disabled=true;statusBox.textContent='Abriendo '+levels.selectedOptions[0].text;statusBox.hidden=false;player.SendMessage('VeterinariaWeb','OpenLevel',levels.value)};
+actions.onclick=()=>{closeHelp();tools.hidden=!tools.hidden;actions.setAttribute('aria-expanded',String(!tools.hidden))};
+help.onclick=()=>{closeActions();const open=help.getAttribute('aria-expanded')!=='true';help.setAttribute('aria-expanded',String(open));statusBox.hidden=!open;if(open)statusBox.textContent=matchMedia('(pointer:coarse)').matches?'Toca un objeto o botón para seleccionarlo. Mantén el dedo sobre un objeto para manipularlo. Desliza el fondo para mirar y usa la palanca para caminar.':'Haz clic para seleccionar. Mantén el clic y arrastra para mover un objeto. Arrastra el fondo para mirar y camina con WASD o las flechas.'};
+view.oncontextmenu=e=>e.preventDefault();vr.onclick=()=>player?.SendMessage('VeterinariaWeb','EnterVR');function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
 </script><script src="Build/Delivery.loader.js"></script><script>
-createUnityInstance(view,{dataUrl:'Build/Delivery.data.unityweb',frameworkUrl:'Build/Delivery.framework.js.unityweb',codeUrl:'Build/Delivery.wasm.unityweb',streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'1',devicePixelRatio:Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;statusBox.hidden=true;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
+createUnityInstance(view,{dataUrl:'Build/Delivery.data.unityweb',frameworkUrl:'Build/Delivery.framework.js.unityweb',codeUrl:'Build/Delivery.wasm.unityweb',streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'1',devicePixelRatio:Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
 </script></body></html>
