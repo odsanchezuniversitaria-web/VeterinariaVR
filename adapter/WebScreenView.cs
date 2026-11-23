@@ -17,6 +17,8 @@ public sealed class WebScreenView {
     Material originalReturnMaterial;
     static readonly Vector3[] Footprint={Vector3.zero,Vector3.right,Vector3.left,Vector3.forward,Vector3.back};
     readonly bool isMenu;
+    readonly GameObject upperStartButton;
+    bool upperStartWasActive;
     readonly UniversalAdditionalCameraData renderData;
     readonly bool authoredPost;
     readonly bool authoredBodyEnabled;
@@ -41,6 +43,12 @@ public sealed class WebScreenView {
         this.owner=owner;
         rig=owner.transform; camera=owner.eye; body=controller;
         isMenu=rig.gameObject.scene.name=="0ScenaMenu";
+        if(isMenu){
+            foreach(var root in rig.gameObject.scene.GetRootGameObjects()){
+                var menu=root.GetComponentInChildren<MenuPrincipalManager>(true);
+                if(menu){upperStartButton=menu.boton1;break;}
+            }
+        }
         authoredBodyEnabled=body && body.enabled;
         renderData=camera.GetComponent<UniversalAdditionalCameraData>();
         authoredPost=renderData && renderData.renderPostProcessing;
@@ -76,6 +84,10 @@ public sealed class WebScreenView {
                 }
             }else if(screenPosition.y<0)screenPosition.y=0;
             menuStart=screenPosition;
+        }
+        if(upperStartButton){
+            upperStartWasActive=upperStartButton.activeSelf;
+            upperStartButton.SetActive(false);
         }
         if(isMenu && body)body.enabled=false;
         SetPose(screenPosition,screenRotation);
@@ -114,6 +126,7 @@ public sealed class WebScreenView {
                 (sky.enabled && sky.material && sky.material.name=="Observatorio"));
         if(isMenu && renderData)renderData.renderPostProcessing=authoredPost;
         SetPose(authoredPosition,authoredRotation);
+        if(upperStartButton)upperStartButton.SetActive(upperStartWasActive);
         if(isMenu && body)body.enabled=authoredBodyEnabled;
         camera.transform.SetLocalPositionAndRotation(authoredEye,authoredEyeRotation);
         Active=false;
