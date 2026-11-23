@@ -1,4 +1,5 @@
 mergeInto(LibraryManager.library,{
+    VeterinariaInspectionState:function(mode,target,percent){document.dispatchEvent(new CustomEvent('veterinaria-inspection',{detail:{mode:UTF8ToString(mode),target:UTF8ToString(target),percent:percent}}));},
     VeterinariaUseLargePanorama:function(){return window.matchMedia('(pointer:coarse)').matches?0:1;},
     VeterinariaSceneReady:function(name){document.dispatchEvent(new CustomEvent('veterinaria-scene',{detail:UTF8ToString(name)}));},
     VeterinariaScreenActions:function(names){document.dispatchEvent(new CustomEvent('veterinaria-actions',{detail:UTF8ToString(names)}));},

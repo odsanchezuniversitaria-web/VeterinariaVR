@@ -6,6 +6,10 @@ Adaptación web de OseoVr4 para una misma dirección de acceso desde escritorio,
 
 En PC, un clic selecciona el objeto o botón bajo el cursor. Mantener el clic permite arrastrar piezas y herramientas. Arrastrar el fondo gira la vista. WASD y las flechas desplazan al usuario.
 
+En Sistema óseo, Cráneos, Cerebro, Músculos y Anatomía se puede seleccionar una pieza agarrable y arrastrarla manteniendo el punto de contacto. Mayús + rueda o la pinza de dos dedos cambian el tamaño visible entre 50 % y 200 %. Los botones − y + ajustan la selección y el botón del porcentaje restablece el 100 %. La rueda sin Mayús acerca o aleja la pieza sostenida.
+
+En Cirugía y Quirófano esos mismos controles cambian el aumento de la cámara entre 100 % y 200 %. Las dimensiones de las herramientas y sus zonas de contacto se conservan. La ampliación de pantalla termina al entrar en WebXR.
+
 En celular, un toque selecciona y un arrastre sobre el fondo gira la vista. En vertical, la portada muestra el menú 3D completo y una lista de actividades que se abren con un toque. Dentro de la escena, la palanca de la esquina inferior izquierda permite caminar mientras se toca la escena con otro dedo. El menú **Acciones** reúne los controles que ofrece la práctica actual.
 
 En el menú de inicio de PC y celular se puede caminar hasta 2,5 metros desde la entrada. El recorrido comprueba que haya plataforma bajo los pies y se detiene antes de atravesar el panel. El brillo del menú se obtiene del perfil de posprocesado de la escena.
@@ -34,6 +38,8 @@ Para reconstruir desde las fuentes de OseoVr4, los cinco instrumentos de 3ds Max
 2. En Unity, seleccionar **Veterinaria Web → Compilar las escenas habilitadas** con WebGL activo. El resultado queda en `Delivery/`, junto a `Unity/`.
 3. Empaquetar con `tools/package-pages.ps1 -CopyRoot <carpeta-de-trabajo> -Destination <carpeta-nueva>`. Se comprueban los 18 paquetes de escenas, el cargador y los límites de distribución.
 4. Servir esa carpeta en la ruta `/VeterinariaVR/` y ejecutar `node tools/verify-pages.cjs <URL> <informe.json>` con Playwright y Chromium disponibles. La comprobación recorre las 18 escenas en escritorio y con pantalla táctil emulada. Verificar también las prácticas y los mandos en un visor físico antes de dar por validada la experiencia inmersiva.
+
+Para comprobar el arrastre, la pinza, el tamaño de las mallas y el encuadre quirúrgico, ejecutar `node tools/verify-gestures.cjs <URL> <carpeta-de-resultados>`. La variable `XR_TEST_BUNDLE` permite incluir la transición inmersiva con IWER.
 
 ## Nexus
 

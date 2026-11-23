@@ -31,9 +31,9 @@ public sealed partial class WebRig : MonoBehaviour {
     WebScreenView screenView;
     CharacterController body;
     UniversalAdditionalCameraData renderData;
-    void Awake(){body=GetComponent<CharacterController>();WebLegacyInput.rig=this;renderData=eye.GetComponent<UniversalAdditionalCameraData>();}
+    void Awake(){baseFov=eye.fieldOfView;body=GetComponent<CharacterController>();WebLegacyInput.rig=this;renderData=eye.GetComponent<UniversalAdditionalCameraData>();}
     public void EnterVR(){if(WebXRManager.Instance)WebXRManager.Instance.ToggleVR();}
-    void OnDestroy(){screenView?.CancelPanorama();}
+    void OnDestroy(){LeaveInspection();screenView?.CancelPanorama();}
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaSceneReady(string scene);
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaScreenMode(int flat);
     static void ReportMode(bool flat){
@@ -66,7 +66,7 @@ public sealed partial class WebRig : MonoBehaviour {
         bool vr = WebXRManager.Instance != null && WebXRManager.Instance.XRState == WebXRState.VR;
         if(renderData && renderData.allowXRRendering!=vr)renderData.allowXRRendering=vr;
         if (vr) {
-            if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;screenView.Leave();}
+            if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;LeaveInspection();screenView.Leave();}
             if(!wasImmersive)ReportMode(false);
             var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
             if (head.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 p)) eye.transform.localPosition = p;
@@ -75,7 +75,7 @@ public sealed partial class WebRig : MonoBehaviour {
             VRPointer(0,left,originalLeft); VRPointer(1,right,originalRight);
         } else {
             if(screenView==null)screenView=new WebScreenView(this,body);
-            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();ReportMode(true);}
+            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();EnterInspection();ReportMode(true);}
             if(leftRay)leftRay.enabled=false;
             if(rightRay)rightRay.enabled=false;
             ScreenInput();
@@ -135,7 +135,8 @@ public sealed partial class WebRig : MonoBehaviour {
     void HandleRay(int i,Ray ray,bool press,bool release,Quaternion rotation,Transform mouseHand,bool screen=false) {
         bool hit=Physics.Raycast(ray,out var nearest,10,Physics.DefaultRaycastLayers,QueryTriggerInteraction.Collide);
         float limit=hit?nearest.distance:10;
-        if(screen && press)hit=ScreenHit(ray,out nearest,out limit);
+        Vector3 localHit=Vector3.zero;
+        if(screen && press)hit=PickScreenRay(ray,out nearest,out limit,out localHit);
         if(screen && press && hit){
             screenDepth=nearest.distance;
         }
@@ -144,17 +145,26 @@ public sealed partial class WebRig : MonoBehaviour {
             if(screen)PickSuture(nearest.collider);
             wrappers[i]=nearest.collider.GetComponentInParent<InteractableUnityEventWrapper>()??nearest.collider.GetComponentInChildren<InteractableUnityEventWrapper>();
             if(wrappers[i]){wrappers[i].WhenHover.Invoke();wrappers[i].WhenSelect.Invoke();}
-            var point=nearest.collider.GetComponentInParent<PointableElement>() ?? nearest.collider.GetComponentInChildren<PointableElement>();
+            var grip=screen && inspection==Inspection.Piece?ScreenGrab(nearest.collider):null;
+            var point=(PointableElement)grip ?? nearest.collider.GetComponentInParent<PointableElement>() ?? nearest.collider.GetComponentInChildren<PointableElement>();
             if(point) {
                 selected[i]=point; distances[i]=nearest.distance;
-                var pose=new Pose(nearest.point,rotation);
+                var contact=grip && grip.Transform?BeginPieceDrag(grip,nearest.point,localHit):nearest.point;
+                var pose=new Pose(contact,rotation);
                 point.ProcessPointerEvent(new PointerEvent(700+i,PointerEventType.Hover,pose,this));
                 point.ProcessPointerEvent(new PointerEvent(700+i,PointerEventType.Select,pose,this));
             }
         }
         if(selected[i]) {
-            distances[i]=Mathf.Clamp(distances[i]+Input.mouseScrollDelta.y*.06f,.15f,10);
-            selected[i].ProcessPointerEvent(new PointerEvent(700+i,PointerEventType.Move,new Pose(ray.GetPoint(distances[i]),rotation),this));
+            float wheel=Input.mouseScrollDelta.y;
+            if(screen && inspection!=Inspection.None && (Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift)))wheel=0;
+            Vector3 position;
+            if(screen && dragPiece)position=PiecePointer(ray,wheel);
+            else{
+                distances[i]=Mathf.Clamp(distances[i]+wheel*.06f,.15f,10);
+                position=ray.GetPoint(distances[i]);
+            }
+            selected[i].ProcessPointerEvent(new PointerEvent(700+i,PointerEventType.Move,new Pose(position,rotation),this));
         }
         if(uiTarget[i] && uiCanvas[i]){
             var pane=uiCanvas[i].transform;var plane=new Plane(pane.forward,pane.position);

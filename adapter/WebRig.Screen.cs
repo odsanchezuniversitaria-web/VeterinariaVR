@@ -80,6 +80,12 @@ public sealed partial class WebRig {
     }
     void ScreenInput(){
         walk=stick+new Vector2(Input.GetAxisRaw("Horizontal"),Input.GetAxisRaw("Vertical"));look=Vector2.zero;
+        if(inspection!=Inspection.None && (canvasFinger || Input.touchCount>0 || Time.unscaledTime-lastTouch<.4f)){
+            look=pendingLook;pendingLook=Vector2.zero;
+            if(canvasFinger && ScreenHeld)ScreenPointer(fingerPosition,false);
+            if(tapEndFrame>=0 && Time.frameCount>tapEndFrame){EndScreenPointer(false);canvasFinger=false;tapEndFrame=-1;}
+            return;
+        }
         if(Input.touchCount>0){
             for(int i=0;i<Input.touchCount;i++){
                 var t=Input.GetTouch(i);
@@ -110,10 +116,10 @@ public sealed partial class WebRig {
         HandleRay(cursor,screenRay,press,false,eye.transform.rotation,originalRight,true);
     }
     void EndScreenPointer(bool cancel){
-        ScreenHeld=false;touchLook=-1;ScreenSuture=null;
+        ScreenHeld=false;touchLook=-1;ScreenSuture=null;dragPiece=null;
         Release(cursor,eye.transform.rotation,cancel);
     }
     void OnApplicationFocus(bool focus){
-        if(!focus && OnScreen){stick=Vector2.zero;EndScreenPointer(true);}
+        if(!focus && OnScreen){stick=Vector2.zero;canvasFinger=false;pendingLook=Vector2.zero;EndScreenPointer(true);}
     }
 }
