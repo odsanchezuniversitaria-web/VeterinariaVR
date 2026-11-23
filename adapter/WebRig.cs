@@ -33,7 +33,7 @@ public sealed partial class WebRig : MonoBehaviour {
     UniversalAdditionalCameraData renderData;
     void Awake(){baseFov=eye.fieldOfView;body=GetComponent<CharacterController>();WebLegacyInput.rig=this;renderData=eye.GetComponent<UniversalAdditionalCameraData>();}
     public void EnterVR(){if(WebXRManager.Instance)WebXRManager.Instance.ToggleVR();}
-    void OnDestroy(){LeaveInspection();screenView?.CancelPanorama();}
+    void OnDestroy(){LeaveClinicalGuide();LeaveInspection();screenView?.CancelPanorama();}
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaSceneReady(string scene);
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaScreenMode(int flat);
     static void ReportMode(bool flat){
@@ -66,7 +66,7 @@ public sealed partial class WebRig : MonoBehaviour {
         bool vr = WebXRManager.Instance != null && WebXRManager.Instance.XRState == WebXRState.VR;
         if(renderData && renderData.allowXRRendering!=vr)renderData.allowXRRendering=vr;
         if (vr) {
-            if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;LeaveInspection();screenView.Leave();}
+            if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;LeaveClinicalGuide();LeaveInspection();screenView.Leave();}
             if(!wasImmersive)ReportMode(false);
             var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
             if (head.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 p)) eye.transform.localPosition = p;
@@ -75,7 +75,7 @@ public sealed partial class WebRig : MonoBehaviour {
             VRPointer(0,left,originalLeft); VRPointer(1,right,originalRight);
         } else {
             if(screenView==null)screenView=new WebScreenView(this,body);
-            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();EnterInspection();ReportMode(true);}
+            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();EnterInspection();EnterClinicalGuide();ReportMode(true);}
             if(leftRay)leftRay.enabled=false;
             if(rightRay)rightRay.enabled=false;
             ScreenInput();

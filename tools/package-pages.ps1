@@ -9,7 +9,7 @@ if($levels.Count -ne 18){throw 'Faltan paquetes de escenas'}
 if(!(Test-Path "$src/index.html") -or !(Get-ChildItem -LiteralPath "$src/Build" -Filter '*.loader.js')){throw 'Falta el reproductor web'}
 if(Test-Path -LiteralPath $Destination){throw 'Elegir una carpeta de distribución nueva'}
 New-Item -ItemType Directory -Path $Destination | Out-Null
-foreach($file in @('index.html','actividades.json')){ Copy-Item -LiteralPath (Join-Path $src $file) -Destination $Destination }
+foreach($file in @('index.html','actividades.json','clinical.js','clinical.css')){ Copy-Item -LiteralPath (Join-Path $src $file) -Destination $Destination }
 foreach($dir in @('Build','Media','StreamingAssets','Content')){
     if(!(Test-Path "$src/$dir")){continue}
     $target=Join-Path $Destination $dir

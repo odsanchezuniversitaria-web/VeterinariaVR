@@ -7,6 +7,7 @@ $template=Join-Path $unity 'Assets/WebGLTemplates/Veterinaria'
 New-Item -ItemType Directory -Path $adapter,$template -Force | Out-Null
 Copy-Item -Path "$SourceRoot/adapter/*" -Destination $adapter -Recurse -Force
 Copy-Item -LiteralPath "$SourceRoot/template/index.html" -Destination $template -Force
+foreach($file in @('clinical.js','clinical.css')){Copy-Item -LiteralPath "$SourceRoot/template/$file" -Destination "$template/$file" -Force}
 $panorama=Join-Path $unity 'Assets/StreamingAssets/VeterinariaPantalla'
 New-Item -ItemType Directory -Path $panorama -Force | Out-Null
 Copy-Item -LiteralPath "$SourceRoot/streaming/observatorio-4k-v1.jpg" -Destination $panorama -Force
@@ -109,6 +110,24 @@ foreach($rel in @('CuerdaFisica.cs','DetectarAgarre.cs','PuntoSuturaSimple.cs','
     $new=$old -replace 'OVRInput\.(GetDown|Get|GetLocalControllerPosition|SetControllerVibration)\(', 'WebLegacyInput.$1('
     if($new -cne $old){[IO.File]::WriteAllText($file,$new,[Text.UTF8Encoding]::new($false))}
 }
+
+# Keep the screen guide and the physical tools on the same drop and smear progression.
+foreach($change in @(
+    @('FrotisExtendidoSuave.cs','public class FrotisExtendidoSuave :','public partial class FrotisExtendidoSuave :'),
+    @('FrotisExtendidoSuave.cs','if (yaOculto) return;','if (yaOculto || recorridoGuiado) return;'),
+    @('FrotisExtendidoSuave.cs','float desplazamiento = activo.position.x - puntoInicio.x;', "AplicarDesplazamiento(activo.position.x - puntoInicio.x);`n    }`n`n    private void AplicarDesplazamiento(float desplazamiento)`n    {"),
+    @('DepositarGota.cs','if (!yaDepositada && other.CompareTag("Jeringa"))','if (other.CompareTag("Jeringa")) Depositar();'),
+    @('DepositarGota.cs',"Depositar();`n        {", "Depositar();`n    }`n`n    public void Depositar()`n    {`n        if (!yaDepositada)`n        {")
+)){
+    $file=Join-Path "$unity/Assets" $change[0]
+    $source=[IO.File]::ReadAllText($file).Replace([string][char]13,'')
+    if($source.Contains($change[1])){
+        [IO.File]::WriteAllText($file,$source.Replace($change[1],$change[2]),[Text.UTF8Encoding]::new($false))
+    }elseif(!$source.Contains($change[2]) -and !($change[0] -eq 'DepositarGota.cs' -and $source.Contains('public void Depositar()'))){
+        throw "Firma del control clínico inesperada en $file"
+    }
+}
+
 $net=Join-Path $unity 'Assets/Scripts/Multijugador/ConectorMultijugador.cs'
 $walker=Join-Path $unity 'Packages/com.meta.xr.sdk.voice/Lib/Wit.ai/Scripts/Editor/Conduit/AssemblyWalker.cs'
 $telemetry=Join-Path $core 'Editor/Utils/SampleMetadata/UpdateManifestWithCodeSample.cs'

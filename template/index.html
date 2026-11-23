@@ -22,12 +22,34 @@ nav{position:fixed;z-index:2;bottom:max(10px,env(safe-area-inset-bottom));right:
 }
 html[data-mode=xr] nav,html[data-mode=xr] aside,html[data-mode=xr] #stick{display:none}
 #zoomBar{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));display:flex;align-items:center;gap:3px;padding:3px 4px 3px 10px;background:#193c3cf2;border-radius:10px;z-index:2}#zoomBar span{font-size:13px;margin-right:4px}#zoomBar button{min-width:44px;padding:.3rem}#zoomReset{font-variant-numeric:tabular-nums}html[data-mode=xr] #zoomBar{display:none}aside{z-index:3}
-</style></head><body>
+</style><link rel="stylesheet" href="clinical.css?v=clinica-1"></head><body>
 <canvas id="view" tabindex="0" aria-label="Escena veterinaria interactiva"></canvas>
 <aside id="status" role="status">Cargando VeterinariaVR<progress max="1" value="0"></progress></aside>
 <section id="mobileLevels" aria-labelledby="activitiesTitle"><h1 id="activitiesTitle">Actividades</h1><div class="choices"></div></section>
 <div id="stick" aria-label="Palanca táctil de movimiento" hidden><span id="knob"></span></div>
 <div id="zoomBar" role="group" aria-label="Ampliación" hidden><span id="zoomType"></span><button id="zoomLess" aria-label="Reducir">−</button><button id="zoomReset" aria-label="Restablecer al 100 %">100 %</button><button id="zoomMore" aria-label="Ampliar">+</button></div>
+<section id="clinical" aria-label="Guía de la práctica" hidden>
+  <button id="clinicToggle" type="button" aria-expanded="false" aria-controls="clinicBody">Guía de práctica</button>
+  <div id="clinicBody" hidden>
+    <div id="labControls" hidden>
+      <h2>Extendido del frotis</h2>
+      <label for="slideAngle">Ángulo del extensor <output id="angleValue" for="slideAngle">25°</output></label>
+      <input id="slideAngle" type="range" min="15" max="65" value="25" step="1">
+      <button type="button" id="slideRail" aria-label="Arrastrar la lámina extensora" aria-describedby="labCue">
+        <canvas id="smearDiagram" aria-hidden="true"></canvas>
+      </button>
+      <div class="clinicLine"><span id="labProgress">Recorrido 0 %</span><button id="dropButton" type="button">Depositar gota</button></div>
+      <p id="labCue" role="status"></p>
+    </div>
+    <div id="surgeryControls" hidden>
+      <h2 id="surgeryTitle"></h2>
+      <dl><dt>Instrumento</dt><dd id="toolName"></dd><dt>Zona</dt><dd id="zoneName"></dd><dt>Gesto</dt><dd id="gestureName"></dd></dl>
+      <p id="pointCue" role="status" hidden></p>
+      <div class="clinicLine"><button id="partButton" type="button" hidden></button><button id="protocolButton" type="button" hidden></button></div>
+    </div>
+  </div>
+</section>
+<div id="guidePins" aria-hidden="true" hidden><span id="toolPin" class="guidePin" hidden>1</span><span id="sitePin" class="guidePin" hidden>2</span></div>
 <nav aria-label="Controles de la práctica">
 <select id="levels" disabled aria-label="Cambiar actividad"><option>Actividades</option></select>
 <button id="actions" hidden aria-expanded="false" aria-controls="tools">Acciones</button><div class="tray" id="tools" hidden></div>
@@ -145,7 +167,7 @@ levels.onchange=()=>{if(!player)return;clearFingers();zoomBar.hidden=true;stopSt
 actions.onclick=()=>{closeHelp();tools.hidden=!tools.hidden;actions.setAttribute('aria-expanded',String(!tools.hidden))};
 help.onclick=()=>{closeActions();const open=help.getAttribute('aria-expanded')!=='true';help.setAttribute('aria-expanded',String(open));statusBox.hidden=!open;if(open)statusBox.textContent=matchMedia('(pointer:coarse)').matches?'Toca un objeto o botón para seleccionarlo. Mantén el dedo sobre un objeto para manipularlo. Desliza el fondo para mirar y usa la palanca para caminar.':'Haz clic para seleccionar. Mantén el clic y arrastra para mover un objeto. Arrastra el fondo para mirar y camina con WASD o las flechas.';if(open)statusBox.textContent+=gestureHelp()};
 view.oncontextmenu=e=>e.preventDefault();vr.onclick=()=>player?.SendMessage('VeterinariaWeb','EnterVR');function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
-</script><script src="Build/{{{ LOADER_FILENAME }}}?v=menu-2"></script><script>
-const playerBuild=file=>'Build/'+file+'?v=menu-2';
+</script><script src="Build/{{{ LOADER_FILENAME }}}?v=clinica-1"></script><script>
+const playerBuild=file=>'Build/'+file+'?v=clinica-1';
 createUnityInstance(view,{dataUrl:playerBuild('{{{ DATA_FILENAME }}}'),frameworkUrl:playerBuild('{{{ FRAMEWORK_FILENAME }}}'),codeUrl:playerBuild('{{{ CODE_FILENAME }}}'),streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'4',devicePixelRatio:Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
-</script></body></html>
+</script><script src="clinical.js?v=clinica-1"></script></body></html>

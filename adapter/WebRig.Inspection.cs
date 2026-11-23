@@ -108,6 +108,7 @@ public sealed partial class WebRig {
     }
     void LateUpdate(){
         if(inspection==Inspection.View && OnScreen)ApplyClinicalLens();
+        TickClinicalGuide();
     }
     void ApplyClinicalLens(){
         // An immersive session can leave its projection on this camera after returning to the canvas.

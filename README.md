@@ -10,6 +10,8 @@ En Sistema óseo, Cráneos, Cerebro, Músculos y Anatomía se puede seleccionar 
 
 En Cirugía y Quirófano esos mismos controles cambian el aumento de la cámara entre 100 % y 200 %. Las dimensiones de las herramientas y sus zonas de contacto se conservan. La ampliación de pantalla termina al entrar en WebXR.
 
+En Laboratorio clínico, **Mesa de frotis** amplía el portaobjetos. Deposita la gota, ajusta la inclinación a 30–45° y arrastra el borde hacia la derecha. Al perder contacto puedes continuar en la marca del extendido. En Cirugía, **Guía de cirugía** sigue el protocolo de la escena. El indicador ① señala el instrumento y ② la zona de aplicación. Cuando hay varias conexiones o herramientas, el botón **Señalar** cambia la indicación dentro del mismo paso. Los indicadores se retiran al entrar en el visor.
+
 En celular, un toque selecciona y un arrastre sobre el fondo gira la vista. En vertical, la portada muestra el menú 3D completo y una lista de actividades que se abren con un toque. Dentro de la escena, la palanca de la esquina inferior izquierda permite caminar mientras se toca la escena con otro dedo. El menú **Acciones** reúne los controles que ofrece la práctica actual.
 
 En el menú de inicio de PC y celular se puede caminar hasta 2,5 metros desde la entrada. El recorrido comprueba que haya plataforma bajo los pies y se detiene antes de atravesar el panel. El brillo del menú se obtiene del perfil de posprocesado de la escena.
