@@ -9,9 +9,12 @@ public sealed partial class WebRig {
     Inspection inspection;
     readonly Dictionary<Transform,float> magnifications=new Dictionary<Transform,float>();
     readonly Dictionary<Transform,Vector3> physicalScales=new Dictionary<Transform,Vector3>();
+    readonly Dictionary<Transform,Quaternion> screenRotations=new Dictionary<Transform,Quaternion>();
+    readonly Dictionary<Transform,Quaternion> physicalRotations=new Dictionary<Transform,Quaternion>();
     Transform inspected,dragPiece;
     Vector3 dragAnchor;
-    float planeDepth,baseFov,viewFactor=1f;
+    float planeDepth,requestedDepth,minimumGrabDepth,baseFov,viewFactor=1f;
+    int grabDepthFrame=-1;
     Vector2 fingerPosition,pendingLook;
     float lastTouch=-10f;
     bool canvasFinger;
@@ -43,7 +46,7 @@ public sealed partial class WebRig {
         RestorePhysicalScales();
         if(inspection==Inspection.View && eye){eye.ResetProjectionMatrix();eye.fieldOfView=baseFov;}
         inspection=Inspection.None;viewFactor=1f;inspected=null;dragPiece=null;
-        magnifications.Clear();canvasFinger=false;tapEndFrame=-1;pendingLook=Vector2.zero;
+        magnifications.Clear();screenRotations.Clear();canvasFinger=false;tapEndFrame=-1;pendingLook=Vector2.zero;
         PublishInspection();
     }
     void PublishInspection(){
@@ -64,6 +67,11 @@ public sealed partial class WebRig {
     }
     // Scale for the flat camera and hit tests only. Simulation and multiplayer retain the authored sizes.
     void ApplyScreenScales(){
+        foreach(var item in screenRotations){
+            if(!item.Key)continue;
+            physicalRotations.Add(item.Key,item.Key.localRotation);
+            item.Key.localRotation*=item.Value;
+        }
         foreach(var item in magnifications){
             if(!item.Key)continue;
             physicalScales.Add(item.Key,item.Key.localScale);
@@ -73,17 +81,17 @@ public sealed partial class WebRig {
     void RestorePhysicalScales(){
         foreach(var item in physicalScales)if(item.Key)item.Key.localScale=item.Value;
         physicalScales.Clear();
+        foreach(var item in physicalRotations)if(item.Key)item.Key.localRotation=item.Value;
+        physicalRotations.Clear();
     }
     bool PickScreenRay(Ray ray,out RaycastHit hit,out float limit,out Vector3 localHit){
         localHit=Vector3.zero;
-        bool enlarged=inspection==Inspection.Piece && magnifications.Count>0;
+        bool enlarged=inspection==Inspection.Piece && (magnifications.Count>0 || screenRotations.Count>0);
         try{
             if(enlarged){ApplyScreenScales();Physics.SyncTransforms();}
             if(!ScreenHit(ray,out hit,out limit))return false;
-            if(inspection==Inspection.Piece){
-                var grab=ScreenGrab(hit.collider);
-                if(grab && grab.Transform)localHit=grab.Transform.InverseTransformPoint(hit.point);
-            }
+            var grab=ScreenGrab(hit.collider);
+            if(grab && grab.isActiveAndEnabled && grab.Transform)localHit=grab.Transform.InverseTransformPoint(hit.point);
             return true;
         }finally{
             if(enlarged){RestorePhysicalScales();Physics.SyncTransforms();}
@@ -93,22 +101,55 @@ public sealed partial class WebRig {
         var grip=hit.GetComponentInParent<Grabbable>()??hit.GetComponentInChildren<Grabbable>();
         return !grip && hit.attachedRigidbody?hit.attachedRigidbody.GetComponentInChildren<Grabbable>():grip;
     }
-    Vector3 BeginPieceDrag(Grabbable grab,Vector3 visiblePoint,Vector3 localPoint){
-        inspected=dragPiece=grab.Transform;dragAnchor=localPoint;
-        planeDepth=Vector3.Dot(visiblePoint-eye.transform.position,eye.transform.forward);
-        PublishInspection();
+    bool PermiteAcercamiento => inspection!=Inspection.View
+        && gameObject.scene.name!="7ScenaLaboratorioClinico" && gameObject.scene.name!="0ScenaMenu";
+
+    Vector3 BeginPieceDrag(Grabbable grab,RaycastHit hit,Vector3 localPoint){
+        dragPiece=grab.Transform;
+        dragAnchor=localPoint;
+        planeDepth=Vector3.Dot(hit.point-eye.transform.position,eye.transform.forward);
+        minimumGrabDepth=Mathf.Clamp(hit.collider.bounds.extents.magnitude+.32f,.40f,.85f);
+        requestedDepth=PermiteAcercamiento?Mathf.Min(planeDepth,Mathf.Max(minimumGrabDepth,planeDepth*.68f)):planeDepth;
+        grabDepthFrame=-1;
+        if(inspection==Inspection.Piece){
+            inspected=dragPiece;
+            PublishInspection();
+        }
         return dragPiece.TransformPoint(dragAnchor);
     }
+
     Vector3 PiecePointer(Ray ray,float wheel){
-        planeDepth=Mathf.Clamp(planeDepth+wheel*.06f,eye.nearClipPlane+.02f,10f);
+        if(grabDepthFrame!=Time.frameCount){
+            grabDepthFrame=Time.frameCount;
+            requestedDepth=Mathf.Clamp(requestedDepth+wheel*.06f,Mathf.Min(planeDepth,minimumGrabDepth),10f);
+            planeDepth=Mathf.MoveTowards(planeDepth,requestedDepth,Time.unscaledDeltaTime*2.8f);
+        }
         var forward=eye.transform.forward;
         float distance=(planeDepth-Vector3.Dot(ray.origin-eye.transform.position,forward))/Vector3.Dot(ray.direction,forward);
         distances[cursor]=distance;
-        return ray.GetPoint(distance)-dragPiece.TransformVector(dragAnchor)*(CurrentFactor()-1f);
+        Vector3 physicalAnchor=dragPiece.TransformVector(dragAnchor);
+        Quaternion offset=screenRotations.TryGetValue(dragPiece,out var saved)?saved:Quaternion.identity;
+        var corrected=dragPiece.localRotation*(offset*Vector3.Scale(dragPiece.localScale,dragAnchor))*CurrentFactor();
+        if(dragPiece.parent)corrected=dragPiece.parent.TransformVector(corrected);
+        return ray.GetPoint(distance)+physicalAnchor-corrected;
     }
+
+    public void ScreenRotate(string angles){
+        if(!OnScreen || inspection!=Inspection.Piece || !inspected)return;
+        if(angles=="reset"){screenRotations.Remove(inspected);return;}
+        var parts=angles.Split(',');
+        if(parts.Length!=3 || !ReadAngle(parts[0],out float yaw) || !ReadAngle(parts[1],out float pitch)
+            || !ReadAngle(parts[2],out float roll))return;
+        var basis=Quaternion.Inverse(inspected.rotation)*eye.transform.rotation;
+        var turn=basis*Quaternion.Euler(pitch,yaw,roll)*Quaternion.Inverse(basis);
+        screenRotations[inspected]=turn*(screenRotations.TryGetValue(inspected,out var old)?old:Quaternion.identity);
+    }
+    static bool ReadAngle(string value,out float degrees)=>float.TryParse(value,NumberStyles.Float,CultureInfo.InvariantCulture,out degrees)
+        && !float.IsNaN(degrees) && !float.IsInfinity(degrees) && Mathf.Abs(degrees)<=180f;
     void LateUpdate(){
         if(inspection==Inspection.View && OnScreen)ApplyClinicalLens();
         TickClinicalGuide();
+        ActualizarBoxeoPantalla();
     }
     void ApplyClinicalLens(){
         // An immersive session can leave its projection on this camera after returning to the canvas.

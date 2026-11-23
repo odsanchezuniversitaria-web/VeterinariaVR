@@ -12,6 +12,12 @@ En Cirugía y Quirófano esos mismos controles cambian el aumento de la cámara 
 
 En Laboratorio clínico, **Mesa de frotis** amplía el portaobjetos. Deposita la gota, ajusta la inclinación a 30–45° y arrastra el borde hacia la derecha. Al perder contacto puedes continuar en la marca del extendido. En Cirugía, **Guía de cirugía** sigue el protocolo de la escena. El indicador ① señala el instrumento y ② la zona de aplicación. Cuando hay varias conexiones o herramientas, el botón **Señalar** cambia la indicación dentro del mismo paso. Los indicadores se retiran al entrar en el visor.
 
+En Boxeo anatómico, el panel de pantalla muestra el hueso objetivo, el tiempo y el puntaje. Pulsa **Empezar** y haz clic o toca cada copia del hueso indicado. La puntuación y las rondas siguen las reglas de la práctica.
+
+En Anatomía y las demás prácticas con inspección de piezas, arrastra **Girar** para cambiar su orientación o gira dos dedos en el celular. El botón ↺ recupera la orientación. Al agarrar una pieza, esta se acerca para facilitar la inspección.
+
+En PC y en los celulares compatibles, el primer clic o toque sobre la escena o sobre una actividad del menú táctil solicita pantalla completa. El botón ⛶ permite volver a solicitarla o salir. Si Nexus abre la app en un iframe, debe permitir `fullscreen`.
+
 En celular, un toque selecciona y un arrastre sobre el fondo gira la vista. En vertical, la portada muestra el menú 3D completo y una lista de actividades que se abren con un toque. Dentro de la escena, la palanca de la esquina inferior izquierda permite caminar mientras se toca la escena con otro dedo. El menú **Acciones** reúne los controles que ofrece la práctica actual.
 
 En el menú de inicio de PC y celular se puede caminar hasta 2,5 metros desde la entrada. El recorrido comprueba que haya plataforma bajo los pies y se detiene antes de atravesar el panel. El brillo del menú se obtiene del perfil de posprocesado de la escena.
@@ -43,7 +49,7 @@ Para reconstruir desde las fuentes de OseoVr4, los cinco instrumentos de 3ds Max
 
 Para comprobar el arrastre, la pinza, el tamaño de las mallas y el encuadre quirúrgico, ejecutar `node tools/verify-gestures.cjs <URL> <carpeta-de-resultados>`. La variable `XR_TEST_BUNDLE` permite incluir la transición inmersiva con IWER.
 
-El multijugador web usa Photon Fusion en la región **Sudamérica (sa)**. Cada práctica conserva su propia sala por nombre. PC, celular y el navegador del visor usan la misma región y la transición inmersiva conserva la conexión activa. Para comprobarlo con dos usuarios, ejecutar `node tools/verify-multiplayer.cjs <URL> <dir-resultados>`. Con `XR_TEST_BUNDLE`, la prueba incluye la entrada a WebXR y la salida y reentrada del otro alumno mientras el visor sigue conectado.
+El multijugador web usa Photon Fusion en la región **Sudamérica (sa)**. Cada práctica conserva su propia sala por nombre. PC, celular y el navegador del visor usan la misma región y la transición inmersiva conserva la conexión activa. Para comprobarlo con dos usuarios, ejecutar `node tools/verify-multiplayer.cjs <URL> <dir-resultados>`. Con `XR_TEST_BUNDLE`, la prueba incluye la entrada a WebXR y comprueba que aparezca el otro alumno cuando se une a la práctica.
 
 ## Nexus
 

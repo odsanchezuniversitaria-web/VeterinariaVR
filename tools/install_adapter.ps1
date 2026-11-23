@@ -173,7 +173,43 @@ foreach($change in @(
     @('            runner.Spawn(prefabJugador, pos, rot, player);', '            _avatarLocal = runner.Spawn(prefabJugador, pos, rot, player);')
 )){
     if($old.Contains($change[1])){continue}
-    if(!$old.Contains($change[0])){throw 'Conector de Photon inesperado'}
+    if(!$old.Contains($change[0])){
+        if($change[0].Contains('runner.Spawn(prefabJugador') -and $old.Contains('runner.TrySpawn(prefabJugador')){continue}
+        if($change[0].Contains('if (player != runner.LocalPlayer)') -and $old.Contains('private void CrearAvatarLocal(')){continue}
+        throw 'Conector de Photon inesperado'
+    }
+    $old=$old.Replace($change[0],$change[1])
+}
+[IO.File]::WriteAllText($net,$old,[Text.UTF8Encoding]::new($false))
+
+# Wait for Fusion to register the scene before spawning the local avatar.
+$old=[IO.File]::ReadAllText($net).Replace([string][char]13,'')
+$member=@'
+        private float _proximoIntentoAvatar;
+
+        private void Update()
+        {
+            var runner = Runner;
+            if (!runner || Time.unscaledTime < _proximoIntentoAvatar) return;
+            CrearAvatarLocal(runner, runner.LocalPlayer);
+        }
+
+'@
+foreach($change in @(
+    @('        private NetworkObject _avatarLocal;', "        private NetworkObject _avatarLocal;`n        private bool _escenaPhotonRegistrada;"),
+    @('            Runner = soporte.AddComponent<NetworkRunner>();', "            _escenaPhotonRegistrada = false;`n            _avatarLocal = null;`n            _proximoIntentoAvatar = 0f;`n            Runner = soporte.AddComponent<NetworkRunner>();"),
+    @('        private void Avisar(string t)', ($member+"        private void Avisar(string t)")),
+    @('            if (_destruido || Runner != runner || !player.IsRealPlayer) return;', "            if (_destruido || Runner != runner || !_escenaPhotonRegistrada || !runner.IsRunning ||`n                runner.IsSceneManagerBusy || !player.IsRealPlayer) return;"),
+    @('            if (_avatarLocal && _avatarLocal.IsValid) return;', "            if (_avatarLocal && _avatarLocal.IsValid) return;`n            _proximoIntentoAvatar = Time.unscaledTime + 1f;"),
+    @('            _avatarLocal = runner.Spawn(prefabJugador, pos, rot, player);', '            runner.TrySpawn(prefabJugador, out _avatarLocal, pos, rot, player);'),
+    @('        public void OnSceneLoadDone(NetworkRunner runner) { }','        public void OnSceneLoadDone(NetworkRunner runner) { if (runner == Runner) _escenaPhotonRegistrada = true; }'),
+    @('        public void OnSceneLoadStart(NetworkRunner runner) { }','        public void OnSceneLoadStart(NetworkRunner runner) { if (runner == Runner) _escenaPhotonRegistrada = false; }')
+)){
+    if($old.Contains($change[1])){continue}
+    if(!$old.Contains($change[0])){
+        if($change[0].Contains('private NetworkObject _avatarLocal;') -and $old.Contains('private bool _escenaPhotonRegistrada;')){continue}
+        throw ('Conector inesperado al preparar el avatar: '+$change[0])
+    }
     $old=$old.Replace($change[0],$change[1])
 }
 [IO.File]::WriteAllText($net,$old,[Text.UTF8Encoding]::new($false))
@@ -192,6 +228,45 @@ $to=@'
 if(!$old.Contains($to)){
     if(!$old.Contains($from)){throw 'Lista de alumnos inesperada'}
     [IO.File]::WriteAllText($roster,$old.Replace($from,$to),[Text.UTF8Encoding]::new($false))
+}
+
+# Preserve the authored impact logic for gloves and also accept a screen pointer in Boxeo.
+foreach($file in @('ControladorJuego.cs','HuesoInteractivo.cs','Scripts/Boxeo/BotonInicioBoxeo.cs')){
+    $ruta=Join-Path "$unity/Assets" $file
+    $original=[IO.File]::ReadAllText($ruta).Replace([string][char]13,'')
+    if($file -eq 'ControladorJuego.cs'){
+        $patron='        if (esperarGuantes)'
+        $sustituto='        if (esperarGuantes && !(WebLegacyInput.rig && WebLegacyInput.rig.OnScreen))'
+    }elseif($file -eq 'HuesoInteractivo.cs'){
+        $patron='        if (guante != null && !guante.Puesto) return;'
+        $sustituto=@'
+        if (guante != null && !guante.Puesto) return;
+        ProcesarGolpe(guante);
+    }
+
+    public void GolpearEnPantalla()
+    {
+        if (_procesado || Time.time < _bloqueadoHasta || Time.timeScale == 0 ||
+            !WebLegacyInput.rig || !WebLegacyInput.rig.OnScreen) return;
+        ProcesarGolpe(null);
+    }
+
+    private void ProcesarGolpe(GuanteEquipable guante)
+    {
+'@
+    }else{
+        $patron='            if (juego != null) juego.Iniciar(vozInstrucciones, altavoz);'
+        $sustituto=@'
+            if (juego != null)
+            {
+                if (WebLegacyInput.rig && WebLegacyInput.rig.OnScreen) juego.Iniciar();
+                else juego.Iniciar(vozInstrucciones, altavoz);
+            }
+'@
+    }
+    if($original.Contains($sustituto)){continue}
+    if(!$original.Contains($patron)){throw ('Adaptador de Boxeo no coincide: '+$ruta)}
+    [IO.File]::WriteAllText($ruta,$original.Replace($patron,$sustituto),[Text.UTF8Encoding]::new($false))
 }
 
 foreach($change in @(

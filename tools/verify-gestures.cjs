@@ -37,7 +37,7 @@ function installFrameReader(){
             const offset=args[name==='drawRangeElements'?5:3];
             const key=count+'-'+offset;
             // A given mesh can be instanced several times. Compare unambiguous meshes only.
-            const row={pos:Array.from(m.slice(12,15)),scale:Math.hypot(m[0],m[1],m[2])};
+            const row={pos:Array.from(m.slice(12,15)),scale:Math.hypot(m[0],m[1],m[2]),axes:Array.from(m.slice(0,12))};
             const poseKey=key+':'+row.pos.map(v=>v.toFixed(3)).join(',');
             if(row.scale>1e-8)pending.instances[poseKey]=row.scale;
             if(!Object.hasOwn(pending.objects,key))pending.objects[key]=row;
@@ -108,7 +108,15 @@ async function check(browser,touch){
     await page.goto(url,{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('#view')?.dataset.scene==='0ScenaMenu',null,{timeout:180000});
     assert.equal(await toolbar.isVisible(),false);
+    const wide=page.locator('#wideMode');
+    if(await wide.isVisible()){
+      await wide.click();
+      await page.waitForFunction(()=>!!document.fullscreenElement);
+      await wide.click();
+      await page.waitForFunction(()=>!document.fullscreenElement);
+    }
     await open('1ScenaOseo');
+    const resting=await snap();
     let point=null;
     const candidates=[[.37,.55],[.38,.56],[.35,.56],[.40,.53],[.36,.59],[.46,.59],[.52,.62],[.57,.66],[.60,.67],[.50,.70]];
     for(const [x,y] of candidates){
@@ -117,12 +125,15 @@ async function check(browser,touch){
       await release();
     }
     assert(point,'Seleccionar un hueso visible');const target=await toolbar.getAttribute('data-target');
+    await pause(430);
     const start=await snap();const moved={...point,x:point.x+50,y:point.y-25};
     if(touch)await send('touchMove',[moved]);else await page.mouse.move(moved.x,moved.y,{steps:5});
     await pause(220);const dragged=await snap();
     const translation=compare(start,dragged).filter(p=>p.delta[0]>.012 && Math.abs(p.ratio-1)<.03);
     assert(translation.length,'El hueso seleccionado debe desplazarse con el puntero');
     const mesh=translation.sort((a,b)=>b.delta[0]-a.delta[0])[0].key;
+    const depth=Math.abs(resting.objects[mesh].pos[2]-start.objects[mesh].pos[2]);
+    assert(depth>.045,'La pieza se debe acercar al agarrar, antes de desplazar el puntero');
     let remaining=moved;
     if(touch){
       const other=at(2,moved.x+90,moved.y);await send('touchStart',[moved,other]);
@@ -151,7 +162,23 @@ async function check(browser,touch){
     for(let i=0;i<7;i++)await page.locator('#zoomMore').click();assert.equal(await percent(),200);
     for(let i=0;i<12;i++)await page.locator('#zoomLess').click();assert.equal(await percent(),50);
     await page.locator('#zoomReset').click();
-    const report={device:touch?'celular':'PC',target,mesh,drag:translation[0].delta,piecePercent:enlarged,actualRatio,surgery:[]};
+    const beforeTurn=await snap();
+    const pad=await page.locator('#rotatePad').boundingBox();
+    const x=pad.x+pad.width*.45,y=pad.y+pad.height*.5;
+    if(touch){
+      await send('touchStart',[at(1,x,y)]);
+      await send('touchMove',[at(1,x-36,y+22)]);
+      await send('touchEnd',[]);
+    }else{
+      await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-36,y+22,{steps:4});await page.mouse.up();
+    }
+    await pause(250);const turned=await snap();
+    const compareAxes=(a,b)=>Math.hypot(...a.objects[mesh].axes.map((v,i)=>(v-b.objects[mesh].axes[i])/a.objects[mesh].scale));
+    const rotation=compareAxes(beforeTurn,turned);
+    assert(rotation>.18,'La orientación de la malla debe cambiar de verdad');
+    await page.locator('#rotateReset').click();await pause(250);
+    assert(compareAxes(beforeTurn,await snap())<.08,'Restablecer la orientación original');
+    const report={depth,rotation,device:touch?'celular':'PC',target,mesh,drag:translation[0].delta,piecePercent:enlarged,actualRatio,surgery:[]};
     for(const scene of ['8ScenaCirugia','Scena6.1 Quirofano']){
       await open(scene);assert.equal(await page.locator('#zoomType').innerText(),'Vista');
       assert.equal(await percent(),100);const before=await snap();

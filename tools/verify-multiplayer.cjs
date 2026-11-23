@@ -63,12 +63,13 @@ async function bothSeeEachOther(clients,scene){
 }
 
 (async()=>{
-  const browser=await chromium.launch({executablePath:process.env.CHROME,
+  const settings={executablePath:process.env.CHROME,
     args:['--enable-webgl','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader',
-      '--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']});
+      '--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']};
+  const browsers=await Promise.all([chromium.launch(settings),chromium.launch(settings)]);
   const clients=[];
   try{
-    clients.push(await client(browser,'PC',false),await client(browser,'móvil',true));
+    clients.push(await client(browsers[0],'PC',false),await client(browsers[1],'móvil',true));
     // Let the first peer finish joining before initializing the second client.
     for(const c of clients){
       await c.page.goto(url,{waitUntil:'domcontentloaded'});
@@ -77,16 +78,13 @@ async function bothSeeEachOther(clients,scene){
       await until(()=>c.rooms.get(menu),c.label+' debe entrar al menú',[c]);
     }
     const lobby=await bothSeeEachOther(clients,menu);
-    // Each practice has its own room. Move both clients to Sistema óseo.
-    for(const c of clients){
-      await c.open(practice);
-      await until(()=>c.rooms.get(practice),c.label+' debe entrar a Sistema óseo',[c]);
-    }
-    const practiceScreen=await bothSeeEachOther(clients,practice);
-    for(const c of clients)await c.page.screenshot({path:path.join(out,c.label+'-sistema-oseo.png')});
+    const [desktop,mobile]=clients;
+    // Start the mobile browser or simulated headset in Sistema óseo while the PC is still in the menu.
+    await mobile.open(practice);
+    const seat=await until(()=>mobile.rooms.get(practice),'El móvil debe entrar a Sistema óseo',clients);
+    await until(()=>mobile.visible.get(practice)?.ids.includes(seat.id),'Debe aparecer el avatar local',clients);
     let xr;
     if(process.env.XR_TEST_BUNDLE){
-      const mobile=clients[1];
       let restored=false;
       mobile.page.on('console',m=>{if(/Cámara de visor restaurada · 1ScenaOseo · observatorio=False/.test(m.text()))restored=true;});
       await mobile.page.locator('#xr').tap();
@@ -97,27 +95,24 @@ async function bothSeeEachOther(clients,scene){
         return await new Promise(r=>session.requestAnimationFrame((_,frame)=>r(frame.getViewerPose(space)?.views.length)));
       });
       assert.equal(views,2);assert(restored,'La cámara inmersiva conserva sus ajustes de visor');
-      const desktop=clients[0],seat=mobile.rooms.get(practice),departing=desktop.rooms.get(practice);
-      desktop.rooms.delete(menu);
-      await desktop.open(menu);
-      await until(()=>desktop.rooms.get(menu), 'El PC debe entrar a la sala del menú', clients);
-      await until(()=>{
-        const list=mobile.visible.get(practice);
-        return list && list.ids.includes(seat.id) && !list.ids.includes(departing.id);
-      },'El visor debe ver salir al otro alumno de la práctica',clients);
-      desktop.rooms.delete(practice);desktop.visible.delete(practice);
-      await desktop.open(practice);
-      const reunited=await bothSeeEachOther(clients,practice);
+      xr={views,restored,player:seat.id};
+    }
+    assert(!desktop.rooms.has(practice),'El PC permanece en la sala del menú hasta entrar en la práctica');
+    await desktop.open(practice);
+    const practiceScreen=await bothSeeEachOther(clients,practice);
+    if(xr){
       assert.equal((await mobile.state()).mode,'xr');
-      assert.equal(mobile.rooms.get(practice).id,seat.id,'WebVR debe conservar la misma conexión');
+      assert.equal(mobile.rooms.get(practice).id,seat.id,'WebVR debe conservar la conexión');
+      xr.avatars=practiceScreen;
       await mobile.page.evaluate(()=>questTest.activeSession.end());
       await mobile.page.waitForFunction(()=>document.documentElement.dataset.mode==='screen');
-      xr={views,restored,player:seat.id,avatars:reunited};
+      await bothSeeEachOther(clients,practice);
     }
+    for(const c of clients)await c.page.screenshot({path:path.join(out,c.label+'-sistema-oseo.png')});
     const report={region,menu:lobby,practice:practiceScreen,xr};
     console.log(JSON.stringify(report));fs.writeFileSync(path.join(out,'multijugador.json'),JSON.stringify(report,null,2));
   }finally{
     for(const c of clients)fs.writeFileSync(path.join(out,c.label+'-photon.log'),c.evidence.join('\n'));
-    await browser.close();
+    await Promise.all(browsers.map(b=>b.close()));
   }
 })().catch(e=>{console.error(e);process.exitCode=1});

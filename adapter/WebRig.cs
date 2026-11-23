@@ -33,7 +33,7 @@ public sealed partial class WebRig : MonoBehaviour {
     UniversalAdditionalCameraData renderData;
     void Awake(){baseFov=eye.fieldOfView;body=GetComponent<CharacterController>();WebLegacyInput.rig=this;renderData=eye.GetComponent<UniversalAdditionalCameraData>();}
     public void EnterVR(){if(WebXRManager.Instance)WebXRManager.Instance.ToggleVR();}
-    void OnDestroy(){LeaveClinicalGuide();LeaveInspection();screenView?.CancelPanorama();}
+    void OnDestroy(){SalirBoxeoPantalla();LeaveClinicalGuide();LeaveInspection();screenView?.CancelPanorama();}
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaSceneReady(string scene);
     [System.Runtime.InteropServices.DllImport("__Internal")] static extern void VeterinariaScreenMode(int flat);
     static void ReportMode(bool flat){
@@ -66,7 +66,7 @@ public sealed partial class WebRig : MonoBehaviour {
         bool vr = WebXRManager.Instance != null && WebXRManager.Instance.XRState == WebXRState.VR;
         if(renderData && renderData.allowXRRendering!=vr)renderData.allowXRRendering=vr;
         if (vr) {
-            if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;LeaveClinicalGuide();LeaveInspection();screenView.Leave();}
+            if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;SalirBoxeoPantalla();LeaveClinicalGuide();LeaveInspection();screenView.Leave();}
             if(!wasImmersive)ReportMode(false);
             var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
             if (head.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 p)) eye.transform.localPosition = p;
@@ -75,7 +75,7 @@ public sealed partial class WebRig : MonoBehaviour {
             VRPointer(0,left,originalLeft); VRPointer(1,right,originalRight);
         } else {
             if(screenView==null)screenView=new WebScreenView(this,body);
-            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();EnterInspection();EnterClinicalGuide();ReportMode(true);}
+            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();EnterInspection();EnterClinicalGuide();EntrarBoxeoPantalla();ReportMode(true);}
             if(leftRay)leftRay.enabled=false;
             if(rightRay)rightRay.enabled=false;
             ScreenInput();
@@ -142,14 +142,16 @@ public sealed partial class WebRig : MonoBehaviour {
         }
         if(mouseHand)mouseHand.SetPositionAndRotation(ray.GetPoint(selected[i]?distances[i]:screen && ScreenHeld?screenDepth:hit?nearest.distance:.65f),rotation);
         if(press && !selected[i] && !ClickUI(i,ray,limit) && hit) {
+            if(screen && IntentarBoxeoPantalla(nearest.collider))return;
             if(screen)PickSuture(nearest.collider);
             wrappers[i]=nearest.collider.GetComponentInParent<InteractableUnityEventWrapper>()??nearest.collider.GetComponentInChildren<InteractableUnityEventWrapper>();
             if(wrappers[i]){wrappers[i].WhenHover.Invoke();wrappers[i].WhenSelect.Invoke();}
-            var grip=screen && inspection==Inspection.Piece?ScreenGrab(nearest.collider):null;
+            var grip=screen && (inspection==Inspection.Piece || PermiteAcercamiento)?ScreenGrab(nearest.collider):null;
+            if(grip && !grip.isActiveAndEnabled)grip=null;
             var point=(PointableElement)grip ?? nearest.collider.GetComponentInParent<PointableElement>() ?? nearest.collider.GetComponentInChildren<PointableElement>();
             if(point) {
                 selected[i]=point; distances[i]=nearest.distance;
-                var contact=grip && grip.Transform?BeginPieceDrag(grip,nearest.point,localHit):nearest.point;
+                var contact=grip && grip.Transform?BeginPieceDrag(grip,nearest,localHit):nearest.point;
                 var pose=new Pose(contact,rotation);
                 point.ProcessPointerEvent(new PointerEvent(700+i,PointerEventType.Hover,pose,this));
                 point.ProcessPointerEvent(new PointerEvent(700+i,PointerEventType.Select,pose,this));

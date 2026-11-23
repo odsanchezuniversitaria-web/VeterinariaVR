@@ -64,13 +64,16 @@ public sealed partial class WebRig {
         return !Physics.Raycast(screenRay,out var solid,10,Physics.DefaultRaycastLayers,QueryTriggerInteraction.Ignore)
             || solid.distance+.12f>=h.distance;
     }
-    static bool ScreenHit(Ray ray,out RaycastHit target,out float limit){
+    bool ScreenHit(Ray ray,out RaycastHit target,out float limit){
         bool solid=Physics.Raycast(ray,out target,10,Physics.DefaultRaycastLayers,QueryTriggerInteraction.Ignore);
         limit=solid?target.distance:10f;
         float best=limit+.02f;
         foreach(var hit in Physics.RaycastAll(ray,best,Physics.DefaultRaycastLayers,QueryTriggerInteraction.Collide)){
             if(!hit.collider.isTrigger || hit.distance>best)continue;
             var c=hit.collider;
+            if(juegoBoxeo && (c.GetComponentInParent<HuesoInteractivo>() || c.GetComponentInParent<OseoVR.Boxeo.BotonInicioBoxeo>())){
+                target=hit;best=hit.distance;solid=true;continue;
+            }
             if(!c.GetComponentInParent<PointableElement>() && !c.GetComponentInChildren<PointableElement>() &&
                 !c.GetComponentInParent<InteractableUnityEventWrapper>() && !c.GetComponentInChildren<InteractableUnityEventWrapper>() &&
                 !c.GetComponentInParent<PuntoSuturaPiel>() && !c.GetComponentInParent<PuntoSuturaSimple>())continue;

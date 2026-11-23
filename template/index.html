@@ -22,7 +22,16 @@ nav{position:fixed;z-index:2;bottom:max(10px,env(safe-area-inset-bottom));right:
 }
 html[data-mode=xr] nav,html[data-mode=xr] aside,html[data-mode=xr] #stick{display:none}
 #zoomBar{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));display:flex;align-items:center;gap:3px;padding:3px 4px 3px 10px;background:#193c3cf2;border-radius:10px;z-index:2}#zoomBar span{font-size:13px;margin-right:4px}#zoomBar button{min-width:44px;padding:.3rem}#zoomReset{font-variant-numeric:tabular-nums}html[data-mode=xr] #zoomBar{display:none}aside{z-index:3}
-</style><link rel="stylesheet" href="clinical.css?v=photon-sa-1"></head><body>
+html[data-mode=xr] #boxing{display:none!important}
+#boxing{position:fixed;left:12px;top:max(12px,env(safe-area-inset-top));z-index:2;max-width:min(420px,calc(100vw - 24px));background:#183c3bf5;color:#f3faf8;padding:12px;border:1px solid #60988c;border-radius:12px}
+#boxing h2{font-size:18px;margin:0 0 5px}#boxing p{margin:0 0 8px;line-height:1.35}#boxing .score{display:flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums;flex-wrap:wrap}
+#boxingPlay{min-height:44px}#status h2{font-size:16px;margin:0 0 5px}#status ul{padding-left:19px;margin:4px 0 0}#status li+li{margin-top:5px}
+#rotateTools{position:fixed;top:calc(max(10px,env(safe-area-inset-top)) + 53px);right:max(10px,env(safe-area-inset-right));display:flex;gap:4px;z-index:2}
+#rotatePad{touch-action:none;user-select:none;cursor:grab}
+#rotatePad:active{cursor:grabbing}html[data-mode=xr] #rotateTools{display:none}
+#wideMode{min-width:44px}
+@media(max-height:510px){#boxing{max-width:min(350px,54vw)}#boxing h2{font-size:15px}#boxing p{font-size:13px}}
+</style><link rel="stylesheet" href="clinical.css?v=pantalla-1"></head><body>
 <canvas id="view" tabindex="0" aria-label="Escena veterinaria interactiva"></canvas>
 <aside id="status" role="status">Cargando VeterinariaVR<progress max="1" value="0"></progress></aside>
 <section id="mobileLevels" aria-labelledby="activitiesTitle"><h1 id="activitiesTitle">Actividades</h1><div class="choices"></div></section>
@@ -50,10 +59,16 @@ html[data-mode=xr] nav,html[data-mode=xr] aside,html[data-mode=xr] #stick{displa
   </div>
 </section>
 <div id="guidePins" aria-hidden="true" hidden><span id="toolPin" class="guidePin" hidden>1</span><span id="sitePin" class="guidePin" hidden>2</span></div>
+<section id="boxing" aria-label="Boxeo anatómico" hidden>
+  <h2 id="boxingTarget">Boxeo anatómico</h2>
+  <p id="boxingHint" role="status"></p>
+  <div class="score"><span id="boxingClock"></span><span id="boxingScore"></span><span id="boxingRound"></span><button id="boxingPlay" type="button">Empezar</button></div>
+</section>
+<div id="rotateTools" hidden role="group" aria-label="Orientación de la pieza"><button id="rotatePad" type="button" aria-label="Arrastra para girar la pieza">↔ Girar</button><button id="rotateReset" type="button" aria-label="Restablecer orientación" title="Restablecer orientación">↺</button></div>
 <nav aria-label="Controles de la práctica">
 <select id="levels" disabled aria-label="Cambiar actividad"><option>Actividades</option></select>
 <button id="actions" hidden aria-expanded="false" aria-controls="tools">Acciones</button><div class="tray" id="tools" hidden></div>
-<button id="help" aria-expanded="false">Ayuda</button><button id="xr" hidden>Entrar en VR</button></nav>
+<button id="help" aria-expanded="false">Ayuda</button><button id="wideMode" aria-label="Pantalla completa" title="Pantalla completa" aria-pressed="false" hidden>⛶</button><button id="xr" hidden>Entrar en VR</button></nav>
 <script>
 const el=id=>document.getElementById(id),view=el('view'),statusBox=el('status'),vr=el('xr'),levels=el('levels'),tools=el('tools'),actions=el('actions'),help=el('help'),stick=el('stick'),knob=el('knob');
 const labels={prev:'Paso anterior',next:'Paso siguiente',equipment:'Equipo de protección',panel:'Mostrar u ocultar panel',legend:'Mostrar u ocultar leyenda',sign:'Ver indicaciones',rope:'Mover cuerda',pause:'Pausar o continuar',network:'Alternar multijugador'};
@@ -62,6 +77,38 @@ let player,activeFinger=null;
 // Track only fingers that started on the scene. The walking pad and the HTML controls own their pointers.
 const zoomBar=el('zoomBar'),zoomReset=el('zoomReset'),contacts=new Map();
 let inspection='',pieceName='',anchor=null,offset={x:0,y:0},span=0,started=false,deferred=null,pinched=false;
+const rotateTools=el('rotateTools'),rotatePad=el('rotatePad');
+let spinPointer=null,twist=0;
+function rotate(yaw,pitch,roll){
+  if(canInspect() && inspection==='pieza' && pieceName)
+    player.SendMessage('VeterinariaWeb','ScreenRotate',[yaw,pitch,roll].map(v=>Math.max(-180,Math.min(180,v)).toFixed(3)).join(','));
+}
+function fingerAngle(){
+  const [a,b]=contacts.values();
+  return Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;
+}
+rotatePad.onpointerdown=e=>{
+  if(!canInspect() || e.button!==0 || spinPointer)return;
+  e.preventDefault();rotatePad.setPointerCapture(e.pointerId);
+  spinPointer={id:e.pointerId,x:e.clientX,y:e.clientY};
+};
+rotatePad.onpointermove=e=>{
+  if(spinPointer?.id!==e.pointerId)return;
+  rotate((e.clientX-spinPointer.x)*.85,(e.clientY-spinPointer.y)*.85,0);
+  spinPointer={id:e.pointerId,x:e.clientX,y:e.clientY};
+};
+rotatePad.onpointerup=rotatePad.onpointercancel=rotatePad.onlostpointercapture=e=>{
+  if(spinPointer?.id===e.pointerId)spinPointer=null;
+};
+rotatePad.onclick=e=>{if(e.detail===0)rotate(15,0,0);};
+rotatePad.onkeydown=e=>{
+  const arrows={ArrowLeft:[-12,0],ArrowRight:[12,0],ArrowUp:[0,-12],ArrowDown:[0,12]};
+  if(!arrows[e.key])return;
+  e.preventDefault();rotate(...arrows[e.key],0);
+};
+el('rotateReset').onclick=()=>{
+  if(canInspect() && pieceName)player.SendMessage('VeterinariaWeb','ScreenRotate','reset');
+};
 function canInspect(){return !!inspection && document.documentElement.dataset.mode==='screen' && !levels.disabled}
 function finger(action,p){
   if(!p || !player)return;
@@ -80,6 +127,7 @@ document.addEventListener('veterinaria-inspection',({detail})=>{
   if(inspection!==detail.mode)clearFingers(false);
   inspection=detail.mode;pieceName=detail.target;
   zoomBar.hidden=!inspection || (inspection==='pieza' && !pieceName);
+  rotateTools.hidden=inspection!=='pieza' || !pieceName;
   el('zoomType').textContent=inspection==='vista'?'Vista':'Pieza';
   zoomBar.dataset.target=pieceName;
   zoomBar.dataset.percent=String(detail.percent);
@@ -105,14 +153,15 @@ view.addEventListener('pointerdown',e=>{
     if(inspection==='vista')deferred=setTimeout(()=>beginSingle(p),150);
     else beginSingle(p);
   }else{
-    clearTimeout(deferred);pinched=true;span=gap();finger('pinch',anchor);
+    clearTimeout(deferred);pinched=true;span=gap();twist=fingerAngle();finger('pinch',anchor);
   }
 });
 view.addEventListener('pointermove',e=>{
   if(!contacts.has(e.pointerId))return;
   const p={x:e.clientX,y:e.clientY};contacts.set(e.pointerId,p);
   if(contacts.size===2){
-    const next=gap();if(span>0)zoom(next/span);span=next;return;
+    const next=gap(),angle=fingerAngle();if(span>0)zoom(next/span);span=next;
+    rotate(0,0,-((angle-twist+540)%360-180));twist=angle;return;
   }
   if(!started){
     if(pinched || Math.hypot(p.x-anchor.x,p.y-anchor.y)<6)return;
@@ -135,13 +184,72 @@ function endFinger(e){
 for(const event of ['pointerup','pointercancel','lostpointercapture'])view.addEventListener(event,endFinger);
 window.addEventListener('blur',()=>clearFingers());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearFingers()});
-function gestureHelp(){
-  if(!inspection)return '';
-  const touch=matchMedia('(pointer:coarse)').matches;
-  if(inspection==='vista')return touch?' Separa o junta dos dedos para ampliar o reducir la vista quirúrgica.':' Usa Mayús + rueda para ampliar o reducir la vista quirúrgica.';
-  return touch?' Arrastra la pieza con un dedo. Con la pieza seleccionada, separa o junta dos dedos para cambiar su tamaño.':' Usa Mayús + rueda para cambiar el tamaño de la pieza seleccionada. La rueda sola acerca o aleja la pieza que sostienes.';
-}
 
+const wide=el('wideMode');
+const immersiveBrowser=/OculusBrowser|Mobile VR|Quest [23]/i.test(navigator.userAgent);
+let fullScreenAttempted=false;
+function setWideLabel(){
+  const full=!!document.fullscreenElement;
+  wide.setAttribute('aria-pressed',String(full));
+  wide.setAttribute('aria-label',full?'Salir de pantalla completa':'Pantalla completa');
+  wide.title=wide.getAttribute('aria-label');
+}
+function enterWide(){
+  if(document.fullscreenEnabled && !document.fullscreenElement)
+    return document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{});
+}
+wide.hidden=!document.fullscreenEnabled || immersiveBrowser;
+wide.onclick=()=>{
+  fullScreenAttempted=true;
+  if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+  else enterWide();
+};
+document.addEventListener('fullscreenchange',setWideLabel);
+if(!wide.hidden){
+  const firstGesture=e=>{
+    if(!e.isTrusted || document.documentElement.dataset.mode!=='screen' || !e.target.closest('#view, #mobileLevels button'))return;
+    document.removeEventListener('pointerup',firstGesture,true);
+    if(!fullScreenAttempted){fullScreenAttempted=true;enterWide();}
+
+  };
+  document.addEventListener('pointerup',firstGesture,true);
+}
+const boxingPanel=el('boxing'),boxingButton=el('boxingPlay');
+let boxingState=null;
+function clearBoxing(){boxingState=null;boxingPanel.hidden=true;}
+boxingButton.onclick=()=>{
+  if(!boxingState || document.documentElement.dataset.mode!=='screen')return;
+  const action=({inicio:'inicio',jugando:'pausa',pausa:'pausa',fin:'repetir'})[boxingState.estado];
+  if(action)player.SendMessage('VeterinariaWeb','BoxeoAccion',action);
+};
+document.addEventListener('veterinaria-boxeo',({detail:s})=>{
+  if(!s.estado || view.dataset.scene!=='4ScenaBoxeo'){clearBoxing();return;}
+  boxingState=s;boxingPanel.hidden=false;
+  const touch=matchMedia('(pointer:coarse)').matches;
+  const how=touch?'Toca el hueso indicado.':'Haz clic en el hueso indicado.';
+  el('boxingTarget').textContent=s.estado==='fin'?'Ronda terminada':s.objetivo?'Busca '+s.objetivo:'Boxeo anatómico';
+  el('boxingHint').textContent=s.estado==='inicio'?how+' Encuentra todas las copias antes de que se acabe el tiempo.':
+    s.estado==='cuenta'?(s.aviso||'Prepárate'):s.estado==='pausa'?'Partida en pausa':s.estado==='fin'?'Puntaje final '+s.puntos:how;
+  el('boxingClock').textContent=s.segundos+' s';
+  el('boxingScore').textContent=s.puntos+' pts';
+  el('boxingRound').textContent=s.ronda?'Ronda '+s.ronda+(s.racha?' · Racha '+s.racha:''):'';
+  boxingButton.hidden=s.estado==='cuenta';
+  boxingButton.textContent=({inicio:'Empezar',jugando:'Pausar',pausa:'Continuar',fin:'Jugar otra vez'})[s.estado]||'';
+});
+document.addEventListener('veterinaria-scene',e=>{if(e.detail!=='4ScenaBoxeo')clearBoxing();});
+function instruccionesPantalla(){
+  const touch=matchMedia('(pointer:coarse)').matches;
+  const rows=touch?['Toca un objeto o botón para seleccionarlo.','Mantén un dedo sobre un objeto y arrástralo.','Desliza el fondo para mirar. Usa la palanca para caminar.']:
+    ['Haz clic en un objeto o botón para seleccionarlo.','Mantén el clic y arrastra para mover un objeto.','Arrastra el fondo para mirar. Camina con WASD o las flechas.'];
+  if(inspection==='pieza')rows.push(touch?'Separa o junta dos dedos para cambiar el tamaño. Gíralos para rotar la pieza. También puedes arrastrar Girar.':
+    'Usa Mayús + rueda para cambiar el tamaño. Arrastra Girar para rotar la pieza horizontal o verticalmente.');
+  if(inspection==='vista')rows.push(touch?'Separa o junta dos dedos para ampliar o reducir la vista.':'Usa Mayús + rueda para ampliar o reducir la vista.');
+  if(view.dataset.scene==='4ScenaBoxeo')rows.unshift(touch?'Pulsa Empezar y toca el hueso que indica el panel.':'Pulsa Empezar y haz clic en el hueso que indica el panel.');
+  const heading=document.createElement('h2'),list=document.createElement('ul');
+  heading.textContent='Controles de la práctica';
+  for(const row of rows){const entry=document.createElement('li');entry.textContent=row;list.append(entry);}
+  statusBox.replaceChildren(heading,list);
+}
 function closeActions(){tools.hidden=true;actions.setAttribute('aria-expanded','false')}
 function closeHelp(){help.setAttribute('aria-expanded','false');statusBox.hidden=true}
 function move(x,y){player?.SendMessage('VeterinariaWeb','SetWalk',x.toFixed(3)+','+y.toFixed(3))}
@@ -165,9 +273,9 @@ document.addEventListener('veterinaria-scene',e=>{view.dataset.scene=document.do
 document.addEventListener('veterinaria-actions',e=>{tools.replaceChildren();for(const id of e.detail.split(',').filter(x=>labels[x])){const b=document.createElement('button');b.textContent=labels[id];b.onclick=()=>{player?.SendMessage('VeterinariaWeb','ScreenAction',id);closeActions();view.focus()};tools.append(b)}actions.hidden=!tools.childElementCount});
 levels.onchange=()=>{if(!player)return;clearFingers();zoomBar.hidden=true;stopStick();closeActions();closeHelp();actions.hidden=true;stick.hidden=true;levels.disabled=true;statusBox.textContent='Abriendo '+levels.selectedOptions[0].text;statusBox.hidden=false;player.SendMessage('VeterinariaWeb','OpenLevel',levels.value)};
 actions.onclick=()=>{closeHelp();tools.hidden=!tools.hidden;actions.setAttribute('aria-expanded',String(!tools.hidden))};
-help.onclick=()=>{closeActions();const open=help.getAttribute('aria-expanded')!=='true';help.setAttribute('aria-expanded',String(open));statusBox.hidden=!open;if(open)statusBox.textContent=matchMedia('(pointer:coarse)').matches?'Toca un objeto o botón para seleccionarlo. Mantén el dedo sobre un objeto para manipularlo. Desliza el fondo para mirar y usa la palanca para caminar.':'Haz clic para seleccionar. Mantén el clic y arrastra para mover un objeto. Arrastra el fondo para mirar y camina con WASD o las flechas.';if(open)statusBox.textContent+=gestureHelp()};
+help.onclick=()=>{closeActions();const open=help.getAttribute('aria-expanded')!=='true';help.setAttribute('aria-expanded',String(open));statusBox.hidden=!open;if(open)instruccionesPantalla()};
 view.oncontextmenu=e=>e.preventDefault();vr.onclick=()=>player?.SendMessage('VeterinariaWeb','EnterVR');function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
-</script><script src="Build/{{{ LOADER_FILENAME }}}?v=photon-sa-1"></script><script>
-const playerBuild=file=>'Build/'+file+'?v=photon-sa-1';
+</script><script src="Build/{{{ LOADER_FILENAME }}}?v=pantalla-1"></script><script>
+const playerBuild=file=>'Build/'+file+'?v=pantalla-1';
 createUnityInstance(view,{dataUrl:playerBuild('{{{ DATA_FILENAME }}}'),frameworkUrl:playerBuild('{{{ FRAMEWORK_FILENAME }}}'),codeUrl:playerBuild('{{{ CODE_FILENAME }}}'),streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'4',devicePixelRatio:Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
-</script><script src="clinical.js?v=photon-sa-1"></script></body></html>
+</script><script src="clinical.js?v=pantalla-1"></script></body></html>
