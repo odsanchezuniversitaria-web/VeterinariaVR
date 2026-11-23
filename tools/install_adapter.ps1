@@ -145,6 +145,55 @@ foreach($fix in @(
 $old=[IO.File]::ReadAllText($net)
 $new=$old.Replace('soporte.AddComponent<NetworkSceneManagerDefault>()','soporte.AddComponent<WebNetworkScenes>()').Replace('SceneRef.FromIndex(escenaActual.buildIndex)','gestorEscena.GetSceneRef(escenaActual.path)')
 if($new -cne $old){[IO.File]::WriteAllText($net,$new,[Text.UTF8Encoding]::new($false))}
+# Use the same cloud region for every browser, including the headset.
+$old=[IO.File]::ReadAllText($net).Replace([string][char]13,'')
+$connected=@'
+            if (res.Ok)
+            {
+                if (Runner != runnerLocal || !runnerLocal.IsRunning) return;
+                CrearAvatarLocal(runnerLocal, runnerLocal.LocalPlayer);
+                Avisar("");
+                Debug.Log($"[VeterinariaVR] Sala {runnerLocal.SessionInfo.Name} · región {runnerLocal.SessionInfo.Region} · alumno {runnerLocal.LocalPlayer.PlayerId}");
+            }
+'@
+$spawn=@'
+            if (player == runner.LocalPlayer) CrearAvatarLocal(runner, player);
+        }
+
+        private void CrearAvatarLocal(NetworkRunner runner, PlayerRef player)
+        {
+            if (_destruido || Runner != runner || !player.IsRealPlayer) return;
+            if (_avatarLocal && _avatarLocal.IsValid) return;
+'@
+foreach($change in @(
+    @('                SceneManager = gestorEscena,', "                SceneManager = gestorEscena,`n                CustomPhotonAppSettings = WebNetworkScenes.CrearAjustesDeSala(),"),
+    @('        private bool _destruido;', "        private bool _destruido;`n        private NetworkObject _avatarLocal;"),
+    @('            if (res.Ok) Avisar("");', $connected),
+    @('            if (player != runner.LocalPlayer) return;', $spawn),
+    @('            runner.Spawn(prefabJugador, pos, rot, player);', '            _avatarLocal = runner.Spawn(prefabJugador, pos, rot, player);')
+)){
+    if($old.Contains($change[1])){continue}
+    if(!$old.Contains($change[0])){throw 'Conector de Photon inesperado'}
+    $old=$old.Replace($change[0],$change[1])
+}
+[IO.File]::WriteAllText($net,$old,[Text.UTF8Encoding]::new($false))
+
+$roster=Join-Path "$unity/Assets" 'Scripts/Multijugador/ListaConectados.cs'
+$old=[IO.File]::ReadAllText($roster).Replace([string][char]13,'')
+$from='            texto.text = _sb.ToString();'
+$to=@'
+            string alumnos = _sb.ToString();
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (texto.text != alumnos)
+                Debug.Log($"[VeterinariaVR] Visibles {runner.SessionInfo.Name} · {runner.SessionInfo.Region} · {runner.LocalPlayer.PlayerId}: {alumnos.Replace('\n', ' ')}");
+#endif
+            texto.text = alumnos;
+'@
+if(!$old.Contains($to)){
+    if(!$old.Contains($from)){throw 'Lista de alumnos inesperada'}
+    [IO.File]::WriteAllText($roster,$old.Replace($from,$to),[Text.UTF8Encoding]::new($false))
+}
+
 foreach($change in @(
     @('PuntoSuturaSimple.cs','DetectarManosCerca();','if (WebLegacyInput.rig && WebLegacyInput.rig.OnScreen) { bool held = WebLegacyInput.rig.ScreenSuture == transform; if (held && !estaAgarrado) OnAgarrado(); else if (!held && estaAgarrado) OnSoltado(); } else DetectarManosCerca();'),
     @('PuntoSuturaPiel.cs','if (EsManoOControlador(other.gameObject))','if ((!WebLegacyInput.rig || !WebLegacyInput.rig.OnScreen) && EsManoOControlador(other.gameObject))'),

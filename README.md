@@ -43,6 +43,8 @@ Para reconstruir desde las fuentes de OseoVr4, los cinco instrumentos de 3ds Max
 
 Para comprobar el arrastre, la pinza, el tamaño de las mallas y el encuadre quirúrgico, ejecutar `node tools/verify-gestures.cjs <URL> <carpeta-de-resultados>`. La variable `XR_TEST_BUNDLE` permite incluir la transición inmersiva con IWER.
 
+El multijugador web usa Photon Fusion en la región **Sudamérica (sa)**. Cada práctica conserva su propia sala por nombre. PC, celular y el navegador del visor usan la misma región y la transición inmersiva conserva la conexión activa. Para comprobarlo con dos usuarios, ejecutar `node tools/verify-multiplayer.cjs <URL> <dir-resultados>`. Con `XR_TEST_BUNDLE`, la prueba incluye la entrada a WebXR y la salida y reentrada del otro alumno mientras el visor sigue conectado.
+
 ## Nexus
 
 [Abrir VeterinariaVR en GitHub Pages](https://odsanchezuniversitaria-web.github.io/VeterinariaVR/)
