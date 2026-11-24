@@ -4,6 +4,17 @@ $src=Join-Path $CopyRoot 'Delivery'
 $catalog=Get-Content -Raw -LiteralPath (Join-Path $src 'actividades.json') | ConvertFrom-Json
 $bundles=(Get-Content -Raw -LiteralPath (Join-Path $src 'bundles.json') | ConvertFrom-Json).names
 if($catalog.names.Count -ne 18){throw 'Catálogo incompleto'}
+foreach($variant in 'movil-nivel-12','movil-nivel-14'){
+    if($variant -notin $bundles){throw "Falta la variante de celular $variant. Compilar las escenas con VeterinariaBuild.Build."}
+}
+foreach($family in 'geo-anatomia-*','geo-cirugia-*'){
+    if(!($bundles -like $family)){throw "Falta la geometría por actividad $family"}
+}
+foreach($clip in '1','1.1','2.0','2.1','3.0','3.1'){
+    $meta=Join-Path $CopyRoot "Unity/Assets/videos/$clip.mp4.meta"
+    $guid=((Select-String -LiteralPath $meta -Pattern '^guid:').Line -split ' ')[1]
+    if(!(Test-Path -LiteralPath "$src/Media/Movil/$guid.mp4")){throw "Falta el vídeo móvil $clip"}
+}
 $levels=@(Get-ChildItem -LiteralPath "$src/Content" -Filter 'nivel-*' -File | Where-Object Extension -ne '.manifest')
 if($levels.Count -ne 18){throw 'Faltan paquetes de escenas'}
 if(!(Test-Path "$src/index.html") -or !(Get-ChildItem -LiteralPath "$src/Build" -Filter '*.loader.js')){throw 'Falta el reproductor web'}
@@ -16,6 +27,12 @@ foreach($dir in @('Build','Media','StreamingAssets','Content')){
     New-Item -ItemType Directory -Path $target | Out-Null
     if($dir -eq 'Content'){
         foreach($name in $bundles){Copy-Item -LiteralPath "$src/$dir/$name" -Destination $target}
+    }elseif($dir -eq 'Media'){
+        $list=& node "$PSScriptRoot/media-catalog.cjs" $CopyRoot
+        if($LASTEXITCODE -ne 0){throw 'Falló la comprobación de referencias de vídeo'}
+        $clips=ConvertFrom-Json -InputObject ([string]$list)
+        foreach($clip in $clips){Copy-Item -LiteralPath "$src/Media/$clip" -Destination $target}
+        Copy-Item -LiteralPath "$src/Media/Movil" -Destination $target -Recurse
     }elseif($dir -eq 'StreamingAssets'){
         foreach($entry in Get-ChildItem -LiteralPath "$src/$dir"){
             if($entry.Name -ne 'SampleAssets'){Copy-Item -LiteralPath $entry.FullName -Destination $target -Recurse;continue}

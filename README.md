@@ -28,6 +28,10 @@ En Sistema óseo, la cámara de pantalla muestra la fotografía del esqueleto co
 
 Cuando una práctica tiene suelo físico, la posición inicial se calcula sobre él y se comprueba que haya espacio para estar de pie.
 
+En PC y celular, al arrastrar una pieza compatible aparece una marca en su destino. Al acercarse el puntero, la pieza ajusta también su profundidad. «Soltar aquí» indica que alcanzó el punto de colocación. Las prácticas conservan la validación de pieza, zona y estado que utiliza Unity.
+
+El celular carga la geometría anatómica por sistema y las variantes del paciente quirúrgico al activarse. En Anatomía, el selector «Sistema anatómico» permite cambiar entre los diez sistemas. En Quirófano, las señales de los monitores tienen copias de menor resolución que se reproducen según la visibilidad de su pantalla. Los visores compatibles con WebXR reciben las escenas completas, incluso antes de entrar en la sesión inmersiva.
+
 ## Archivos del proyecto
 
 - `adapter/` contiene el reproductor de escenas, la entrada de punteros y mandos, y la integración con los componentes de la práctica.
@@ -36,7 +40,7 @@ Cuando una práctica tiene suelo físico, la posición inicial se calcula sobre 
 
 ## Compilación sobre la copia de autoría
 
-En la carpeta de trabajo, `Unity/` contiene Assets, Packages y ProjectSettings de la copia. La copia requiere el módulo WebGL de Unity, WebXR Export y su integración con XR Management. Las escenas generadas se guardan en `Assets/WebPortGenerated/`. Los quince vídeos H.264 se preparan con `tools/prepare-media.ps1 -CopyRoot <carpeta-de-trabajo>` y se sirven desde `Delivery/Media/<guid>.mp4`. Cada GUID corresponde al archivo meta original.
+En la carpeta de trabajo, `Unity/` contiene Assets, Packages y ProjectSettings de la copia. La copia requiere el módulo WebGL de Unity, WebXR Export y su integración con XR Management. Las escenas generadas se guardan en `Assets/WebPortGenerated/`. Los quince vídeos H.264 se preparan con `tools/prepare-media.ps1 -CopyRoot <carpeta-de-trabajo>` en `Delivery/Media/<guid>.mp4`. El empaquetador comprueba las referencias de escenas, prefabs y scripts y omite los clips que pertenecen exclusivamente a escenas deshabilitadas. Cada GUID corresponde al archivo meta original.
 
 Durante la compilación, el adaptador reduce las mallas estáticas de alta densidad con UnityMeshSimplifier 3.1.1, conserva los submateriales y omite las mallas animadas. Los recursos que usan las mismas actividades se agrupan para permitir descargas parciales al cambiar de escena. [UnityMeshSimplifier](https://github.com/Whinarn/UnityMeshSimplifier/tree/v3.1.1)
 
@@ -50,6 +54,10 @@ Para reconstruir desde las fuentes de OseoVr4, los cinco instrumentos de 3ds Max
 Para comprobar el arrastre, la pinza, el tamaño de las mallas y el encuadre quirúrgico, ejecutar `node tools/verify-gestures.cjs <URL> <carpeta-de-resultados>`. La variable `XR_TEST_BUNDLE` permite incluir la transición inmersiva con IWER.
 
 El multijugador web usa Photon Fusion en la región **Sudamérica (sa)**. Cada práctica conserva su propia sala por nombre. PC, celular y el navegador del visor usan la misma región y la transición inmersiva conserva la conexión activa. Para comprobarlo con dos usuarios, ejecutar `node tools/verify-multiplayer.cjs <URL> <dir-resultados>`. Con `XR_TEST_BUNDLE`, la prueba incluye la entrada a WebXR y comprueba que aparezca el otro alumno cuando se une a la práctica.
+
+Para reconstruir las señales móviles, ejecutar `tools/prepare-mobile-monitors.ps1 -CopyRoot <carpeta-de-trabajo>` tras preparar los vídeos ordinarios. La compilación completa genera los paquetes de geometría y las variantes de escena, y actualiza el catálogo de las 18 entradas. Los paquetes tienen direcciones con su versión para reutilizarlos en las visitas siguientes desde el celular.
+
+Para verificar la selección de sistemas, la entrega de vídeos y las rutas de PC, celular y visor, ejecutar `node tools/verify-mobile-practices.cjs <URL> <informe.json>`. La prueba del encaje con ratón y entrada táctil se ejecuta con `node tools/verify-placement.cjs <URL> <informe.json>`.
 
 ## Nexus
 

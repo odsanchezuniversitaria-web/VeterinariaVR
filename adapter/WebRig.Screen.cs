@@ -119,6 +119,7 @@ public sealed partial class WebRig {
         HandleRay(cursor,screenRay,press,false,eye.transform.rotation,originalRight,true);
     }
     void EndScreenPointer(bool cancel){
+        if(shownPlacement.z>0)MarkPlacement(Vector3.zero,0);
         ScreenHeld=false;touchLook=-1;ScreenSuture=null;dragPiece=null;
         Release(cursor,eye.transform.rotation,cancel);
     }

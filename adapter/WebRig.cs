@@ -45,6 +45,7 @@ public sealed partial class WebRig : MonoBehaviour {
 #if UNITY_WEBGL && !UNITY_EDITOR
         VeterinariaSceneReady(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
         AnnounceActions();
+        if(mobileSystems)ShowMobileSystems(true);
 #endif
     }
     public void OpenLevel(string level){
@@ -67,7 +68,7 @@ public sealed partial class WebRig : MonoBehaviour {
         if(renderData && renderData.allowXRRendering!=vr)renderData.allowXRRendering=vr;
         if (vr) {
             if(screenView!=null && screenView.Active){EndScreenPointer(true);stick=Vector2.zero;SalirBoxeoPantalla();LeaveClinicalGuide();LeaveInspection();screenView.Leave();}
-            if(!wasImmersive)ReportMode(false);
+            if(!wasImmersive){ReportMode(false);ShowMobileSystems(false);}
             var head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
             if (head.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 p)) eye.transform.localPosition = p;
             if (head.TryGetFeatureValue(CommonUsages.centerEyeRotation, out Quaternion q)) eye.transform.localRotation = q;
@@ -75,7 +76,7 @@ public sealed partial class WebRig : MonoBehaviour {
             VRPointer(0,left,originalLeft); VRPointer(1,right,originalRight);
         } else {
             if(screenView==null)screenView=new WebScreenView(this,body);
-            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();EnterInspection();EnterClinicalGuide();EntrarBoxeoPantalla();ReportMode(true);}
+            if(!screenView.Active){Release(0,eye.transform.rotation);Release(1,eye.transform.rotation);screenView.Enter();EnterInspection();EnterClinicalGuide();EntrarBoxeoPantalla();ReportMode(true);ShowMobileSystems(true);}
             if(leftRay)leftRay.enabled=false;
             if(rightRay)rightRay.enabled=false;
             ScreenInput();
@@ -146,7 +147,7 @@ public sealed partial class WebRig : MonoBehaviour {
             if(screen)PickSuture(nearest.collider);
             wrappers[i]=nearest.collider.GetComponentInParent<InteractableUnityEventWrapper>()??nearest.collider.GetComponentInChildren<InteractableUnityEventWrapper>();
             if(wrappers[i]){wrappers[i].WhenHover.Invoke();wrappers[i].WhenSelect.Invoke();}
-            var grip=screen && (inspection==Inspection.Piece || PermiteAcercamiento)?ScreenGrab(nearest.collider):null;
+            var grip=screen?ScreenGrab(nearest.collider):null;
             if(grip && !grip.isActiveAndEnabled)grip=null;
             var point=(PointableElement)grip ?? nearest.collider.GetComponentInParent<PointableElement>() ?? nearest.collider.GetComponentInChildren<PointableElement>();
             if(point) {
@@ -196,4 +197,3 @@ public sealed partial class WebRig : MonoBehaviour {
         selected[i]=null;
     }
 }
-

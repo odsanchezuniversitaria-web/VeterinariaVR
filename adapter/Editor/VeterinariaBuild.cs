@@ -103,13 +103,18 @@ public static class VeterinariaBuild {
             web.format=TextureImporterFormat.Automatic;web.textureCompression=TextureImporterCompression.Compressed;
             tex.SetPlatformTextureSettings(web);tex.SaveAndReimport();
         }
-        var manifest=BuildPipeline.BuildAssetBundles(Content,levels.Concat(shared).ToArray(),
+        var mobile=new WebMobileScenes();
+        foreach(var level in levels)mobile.Prepare(level);
+        AssetDatabase.SaveAssets();
+        var geometry=mobile.Geometry.ToArray();
+        var entries=levels.Concat(mobile.scenes.Values).ToArray();
+        var manifest=BuildPipeline.BuildAssetBundles(Content,entries.Concat(shared).Concat(geometry).ToArray(),
             BuildAssetBundleOptions.ChunkBasedCompression|BuildAssetBundleOptions.StrictMode,BuildTarget.WebGL);
         if(!manifest)throw new Exception("Falló la compilación de recursos por escena.");
-        var required=levels.SelectMany(l=>manifest.GetAllDependencies(l.assetBundleName).Append(l.assetBundleName)).Distinct().OrderBy(n=>n).ToArray();
+        var required=entries.Concat(geometry).SelectMany(l=>manifest.GetAllDependencies(l.assetBundleName).Append(l.assetBundleName)).Distinct().OrderBy(n=>n).ToArray();
         File.WriteAllText(Path.Combine(Out,"bundles.json"),JsonUtility.ToJson(new Catalog{names=required}));
         var hashes=required.ToDictionary(n=>n,n=>manifest.GetAssetBundleHash(n).ToString());
-        var levelDependencies=levels.ToDictionary(l=>l.assetBundleName,l=>manifest.GetAllDependencies(l.assetBundleName));
+        var levelDependencies=entries.ToDictionary(l=>l.assetBundleName,l=>manifest.GetAllDependencies(l.assetBundleName));
         var gates=new List<string>();
         foreach(var level in levels){
             var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene);
@@ -117,6 +122,13 @@ public static class VeterinariaBuild {
             gate.sceneBundle=level.assetBundleName;gate.scenePath=level.assetNames[0];
             gate.dependencies=levelDependencies[gate.sceneBundle];
             gate.versions=gate.dependencies.Concat(new[]{gate.sceneBundle}).Select(n=>hashes[n]).ToArray();
+            if(mobile.scenes.TryGetValue(level.assetBundleName,out var variant)){
+                gate.phoneBundle=variant.assetBundleName;
+                gate.phoneDependencies=levelDependencies[gate.phoneBundle];
+                gate.phoneVersions=gate.phoneDependencies.Concat(new[]{gate.phoneBundle}).Select(n=>hashes[n]).ToArray();
+                gate.geometryNames=geometry.Select(a=>a.assetBundleName).ToArray();
+                gate.geometryVersions=gate.geometryNames.Select(n=>hashes[n]).ToArray();
+            }
             var path=Gates+"/"+Name(gate.scenePath)+".unity";
             if(!EditorSceneManager.SaveScene(scene,path))throw new IOException(path);gates.Add(path);
         }
@@ -136,7 +148,8 @@ public static class VeterinariaBuild {
         AssetDatabase.Refresh();
         PrepareScreenEnvironment(screenFolder,enabled);
         WebSkeletonGuide.Build(screenFolder);
-        var lab=AssetDatabase.LoadAssetAtPath<Cubemap>("Assets/Scenes/Scena7 LaboratorioClinico/ReflectionProbe-0.exr");
+        var lab=AssetDatabase.LoadAssetAtPath<Cubemap>("Assets/Scenes/7ScenaLaboratorioClinico/ReflectionProbe-0.exr")
+            ?? AssetDatabase.LoadAssetAtPath<Cubemap>("Assets/Scenes/Scena7 LaboratorioClinico/ReflectionProbe-0.exr");
         var skyShader=Shader.Find("Skybox/Cubemap");
         if(!lab || !skyShader)throw new InvalidOperationException("Falta el entorno del laboratorio para pantalla");
         var skyPath=screenFolder+"/Laboratorio.mat";
@@ -221,6 +234,20 @@ public static class VeterinariaBuild {
     static void AdaptScene(Scene scene){
         AdaptVideos(All<VideoInteractivoVeterinaria>(scene),All<VideoPlayer>(scene));
         var videos=All<VideoPlayer>(scene).ToArray();
+        if(scene.name=="Scena6.1 Quirofano"){
+            var displays=All<UnityEngine.UI.RawImage>(scene).ToArray();
+            int count=0;
+            foreach(var monitor in videos.Where(v=>v.name.StartsWith("VideoPlayerVideo") && v.targetTexture)){
+                var web=monitor.GetComponent<WebVideo>();
+                if(!web)continue;
+                if(!File.Exists(Path.Combine(Out,"Media/Movil",Path.GetFileName(web.mediaPath))))throw new FileNotFoundException("Falta la señal móvil de "+monitor.name,web.mediaPath);
+                web.mobileDisplays=displays.Where(image=>image.texture==monitor.targetTexture).ToArray();
+                if(web.mobileDisplays.Length==0)throw new InvalidDataException("Falta la pantalla de "+monitor.name);
+                count++;
+            }
+            if(count==0)throw new InvalidDataException("No se localizaron las señales del quirófano");
+            Debug.Log("Señales de monitor para celular: "+count);
+        }
         foreach(var control in All<PausePlayVideo>(scene).Where(c=>!c.videoPlayer)){
             control.videoPlayer=control.GetComponentInParent<VideoPlayer>() ?? control.GetComponentInChildren<VideoPlayer>(true) ??
                 videos.OrderBy(v=>(v.transform.position-control.transform.position).sqrMagnitude).FirstOrDefault();
@@ -331,4 +358,3 @@ public static class VeterinariaBuild {
         AssetDatabase.SaveAssets();
     }
 }
-

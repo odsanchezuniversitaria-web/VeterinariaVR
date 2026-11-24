@@ -107,6 +107,7 @@ public sealed partial class WebRig {
     Vector3 BeginPieceDrag(Grabbable grab,RaycastHit hit,Vector3 localPoint){
         dragPiece=grab.Transform;
         dragAnchor=localPoint;
+        BeginPlacement(grab,hit.collider);
         planeDepth=Vector3.Dot(hit.point-eye.transform.position,eye.transform.forward);
         minimumGrabDepth=Mathf.Clamp(hit.collider.bounds.extents.magnitude+.32f,.40f,.85f);
         requestedDepth=PermiteAcercamiento?Mathf.Min(planeDepth,Mathf.Max(minimumGrabDepth,planeDepth*.68f)):planeDepth;
@@ -131,7 +132,7 @@ public sealed partial class WebRig {
         Quaternion offset=screenRotations.TryGetValue(dragPiece,out var saved)?saved:Quaternion.identity;
         var corrected=dragPiece.localRotation*(offset*Vector3.Scale(dragPiece.localScale,dragAnchor))*CurrentFactor();
         if(dragPiece.parent)corrected=dragPiece.parent.TransformVector(corrected);
-        return ray.GetPoint(distance)+physicalAnchor-corrected;
+        return AssistPlacement(ray,ray.GetPoint(distance)+physicalAnchor-corrected);
     }
 
     public void ScreenRotate(string angles){
@@ -148,6 +149,7 @@ public sealed partial class WebRig {
         && !float.IsNaN(degrees) && !float.IsInfinity(degrees) && Mathf.Abs(degrees)<=180f;
     void LateUpdate(){
         if(inspection==Inspection.View && OnScreen)ApplyClinicalLens();
+        UpdateMobileStart();
         TickClinicalGuide();
         ActualizarBoxeoPantalla();
     }

@@ -20,6 +20,9 @@ nav{position:fixed;z-index:2;bottom:max(10px,env(safe-area-inset-bottom));right:
   #mobileLevels button{text-align:left;background:#254447;color:#f2faf7;border-color:#3d6264}
   html[data-mode=screen][data-scene="0ScenaMenu"] #levels,html[data-mode=screen][data-scene="0ScenaMenu"] #stick{display:none}
 }
+#placementMarker{position:fixed;z-index:1;pointer-events:none;transform:translate(-50%,-100%);padding:3px 8px;margin-top:-9px;border-radius:5px;color:white;background:#17434bec;font-size:12px}
+#placementMarker::after{content:'';position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);border:2px solid #bce8ff;border-radius:50%;width:10px;height:10px}
+#placementMarker[data-near=true]{background:#176343}#placementMarker[data-near=true]::after{border-color:#8df1bf}html[data-mode=xr] #placementMarker{display:none}
 html[data-mode=xr] nav,html[data-mode=xr] aside,html[data-mode=xr] #stick{display:none}
 #zoomBar{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));display:flex;align-items:center;gap:3px;padding:3px 4px 3px 10px;background:#193c3cf2;border-radius:10px;z-index:2}#zoomBar span{font-size:13px;margin-right:4px}#zoomBar button{min-width:44px;padding:.3rem}#zoomReset{font-variant-numeric:tabular-nums}html[data-mode=xr] #zoomBar{display:none}aside{z-index:3}
 html[data-mode=xr] #boxing{display:none!important}
@@ -65,7 +68,7 @@ html[data-mode=xr] #boxing{display:none!important}
   <div class="score"><span id="boxingClock"></span><span id="boxingScore"></span><span id="boxingRound"></span><button id="boxingPlay" type="button">Empezar</button></div>
 </section>
 <div id="rotateTools" hidden role="group" aria-label="Orientación de la pieza"><button id="rotatePad" type="button" aria-label="Arrastra para girar la pieza">↔ Girar</button><button id="rotateReset" type="button" aria-label="Restablecer orientación" title="Restablecer orientación">↺</button></div>
-<nav aria-label="Controles de la práctica">
+<span id="placementMarker" hidden></span><nav aria-label="Controles de la práctica">
 <select id="levels" disabled aria-label="Cambiar actividad"><option>Actividades</option></select>
 <button id="actions" hidden aria-expanded="false" aria-controls="tools">Acciones</button><div class="tray" id="tools" hidden></div>
 <button id="help" aria-expanded="false">Ayuda</button><button id="wideMode" aria-label="Pantalla completa" title="Pantalla completa" aria-pressed="false" hidden>⛶</button><button id="xr" hidden>Entrar en VR</button></nav>
@@ -276,6 +279,26 @@ actions.onclick=()=>{closeHelp();tools.hidden=!tools.hidden;actions.setAttribute
 help.onclick=()=>{closeActions();const open=help.getAttribute('aria-expanded')!=='true';help.setAttribute('aria-expanded',String(open));statusBox.hidden=!open;if(open)instruccionesPantalla()};
 view.oncontextmenu=e=>e.preventDefault();vr.onclick=()=>player?.SendMessage('VeterinariaWeb','EnterVR');function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
 </script><script src="Build/{{{ LOADER_FILENAME }}}?v=pantalla-1"></script><script>
-const playerBuild=file=>'Build/'+file+'?v=pantalla-1';
-createUnityInstance(view,{dataUrl:playerBuild('{{{ DATA_FILENAME }}}'),frameworkUrl:playerBuild('{{{ FRAMEWORK_FILENAME }}}'),codeUrl:playerBuild('{{{ CODE_FILENAME }}}'),streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'4',devicePixelRatio:Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
+const systemPicker=document.createElement('select');
+systemPicker.setAttribute('aria-label','Sistema anatómico');systemPicker.hidden=true;
+document.querySelector('#levels').after(systemPicker);
+systemPicker.onchange=()=>{if(systemPicker.value && player)player.SendMessage('VeterinariaWeb','SelectMobileSystem',systemPicker.value);};
+document.addEventListener('veterinaria-systems',e=>{
+  const names=e.detail ? e.detail.split('|') : [];
+  systemPicker.replaceChildren(new Option('Ver sistema…',''),...names.map((name,index)=>new Option(name,String(index))));
+  systemPicker.hidden=!names.length;
+});
+document.addEventListener('veterinaria-scene',()=>{systemPicker.hidden=true;document.getElementById('placementMarker').hidden=true;});
+function practiceCache(url){
+  const resource=new URL(url,document.baseURI);
+  if(window.veterinariaPhone && resource.origin===location.origin && resource.pathname.includes('/Content/') && /^[a-f0-9]{32}$/i.test(resource.searchParams.get('v')||''))return 'immutable';
+  return /\.data(?:\.|$)|\.bundle(?:\.|$)/.test(resource.pathname)?'must-revalidate':'no-store';
+}
+const playerBuild=file=>'Build/'+file+'?v=movil-2';
+(async()=>{
+  let immersive=false;
+  try{immersive=!!(await navigator.xr?.isSessionSupported('immersive-vr'));}catch{}
+  window.veterinariaPhone=matchMedia('(pointer:coarse)').matches && !immersive && !/Oculus|Quest|Wolvic|PicoBrowser|Mobile VR|Vive Focus/i.test(navigator.userAgent);
+createUnityInstance(view,{dataUrl:playerBuild('{{{ DATA_FILENAME }}}'),frameworkUrl:playerBuild('{{{ FRAMEWORK_FILENAME }}}'),codeUrl:playerBuild('{{{ CODE_FILENAME }}}'),streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'4',cacheControl:practiceCache,devicePixelRatio:Math.min(devicePixelRatio,window.veterinariaPhone?1:matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
+})().catch(fail);
 </script><script src="clinical.js?v=pantalla-1"></script></body></html>

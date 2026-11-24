@@ -11,12 +11,33 @@ public sealed class WebSceneGate : MonoBehaviour
     public string sceneBundle, scenePath;
     public string[] dependencies, versions;
     static readonly Dictionary<string, AssetBundle> resident = new Dictionary<string, AssetBundle>();
+    public string phoneBundle;
+    public string[] phoneDependencies,phoneVersions,geometryNames,geometryVersions;
+    static readonly Dictionary<string,string> geometryHashes=new Dictionary<string,string>();
+    [System.Runtime.InteropServices.DllImport("__Internal")] static extern int VeterinariaPhone();
+    public static bool Phone {
+        get {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return VeterinariaPhone()!=0;
+#else
+            return false;
+#endif
+        }
+    }
+    public static string MobileGeometryVersion(string group)=>geometryHashes[group];
+    public static UnityWebRequest RequestBundle(string name,string version)=>
+        UnityWebRequestAssetBundle.GetAssetBundle(FileUrl("Content/"+name+"?v="+version),Hash128.Parse(version));
     string status;
     bool failed;
     public static string FileUrl(string relative) => new Uri(new Uri(Application.absoluteURL), relative).AbsoluteUri;
 
     IEnumerator Start() {
         status = "Abriendo " + System.IO.Path.GetFileNameWithoutExtension(scenePath);
+        if(Phone && !string.IsNullOrEmpty(phoneBundle)){
+            sceneBundle=phoneBundle;dependencies=phoneDependencies;versions=phoneVersions;
+            geometryHashes.Clear();
+            for(int i=0;i<geometryNames.Length;i++)geometryHashes.Add(geometryNames[i],geometryVersions[i]);
+        }
         var wanted = new HashSet<string>(dependencies) { sceneBundle };
         foreach (string old in new List<string>(resident.Keys)) {
             if (wanted.Contains(old)) continue;
@@ -31,7 +52,7 @@ public sealed class WebSceneGate : MonoBehaviour
                 while(next<names.Count && pending.Count<4){
                     int i=next++;
                     if(resident.ContainsKey(names[i]))continue;
-                    var req=UnityWebRequestAssetBundle.GetAssetBundle(FileUrl("Content/"+names[i]),Hash128.Parse(versions[i]));
+                    var req=RequestBundle(names[i],versions[i]);
                     pending.Add(names[i],req);req.SendWebRequest();
                 }
                 yield return null;
@@ -59,4 +80,3 @@ public sealed class WebSceneGate : MonoBehaviour
         }
     }
 }
-
