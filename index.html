@@ -278,7 +278,7 @@ levels.onchange=()=>{if(!player)return;clearFingers();zoomBar.hidden=true;stopSt
 actions.onclick=()=>{closeHelp();tools.hidden=!tools.hidden;actions.setAttribute('aria-expanded',String(!tools.hidden))};
 help.onclick=()=>{closeActions();const open=help.getAttribute('aria-expanded')!=='true';help.setAttribute('aria-expanded',String(open));statusBox.hidden=!open;if(open)instruccionesPantalla()};
 view.oncontextmenu=e=>e.preventDefault();vr.onclick=()=>player?.SendMessage('VeterinariaWeb','EnterVR');function fail(s){statusBox.hidden=false;statusBox.textContent=String(s)}
-</script><script src="Build/Delivery.loader.js?v=pantalla-1"></script><script>
+</script><script>
 const systemPicker=document.createElement('select');
 systemPicker.setAttribute('aria-label','Sistema anatómico');systemPicker.hidden=true;
 document.querySelector('#levels').after(systemPicker);
@@ -294,11 +294,20 @@ function practiceCache(url){
   if(window.veterinariaPhone && resource.origin===location.origin && resource.pathname.includes('/Content/') && /^[a-f0-9]{32}$/i.test(resource.searchParams.get('v')||''))return 'immutable';
   return /\.data(?:\.|$)|\.bundle(?:\.|$)/.test(resource.pathname)?'must-revalidate':'no-store';
 }
-const playerBuild=file=>'Build/'+file+'?v=movil-2';
+const flatFiles={"Delivery.data.unityweb":"BuildPantalla/Delivery.data.unityweb?v=902c9fb20001","Delivery.wasm.unityweb":"BuildPantalla/Delivery.wasm.unityweb?v=c210902a6821","Delivery.framework.js.unityweb":"BuildPantalla/Delivery.framework.js.unityweb?v=d72c46fdccab","Delivery.loader.js":"BuildPantalla/Delivery.loader.js?v=d880b919f4f6"};
+const playerBuild=file=>window.veterinariaPracticasPantalla && flatFiles[file] || 'Build/'+file+'?v=movil-2';
 (async()=>{
   let immersive=false;
   try{immersive=!!(await navigator.xr?.isSessionSupported('immersive-vr'));}catch{}
   window.veterinariaPhone=matchMedia('(pointer:coarse)').matches && !immersive && !/Oculus|Quest|Wolvic|PicoBrowser|Mobile VR|Vive Focus/i.test(navigator.userAgent);
+
+  if(!immersive && !/Oculus|Quest|Wolvic|PicoBrowser|Mobile VR|Vive Focus/i.test(navigator.userAgent)){
+    const practice=await import('./practicas-pantalla.js?v=c677afd7ee08');
+    window.veterinariaPracticasPantalla=true;
+    practice.install((method,value)=>player?.SendMessage('VeterinariaWeb',method,value));
+    vr.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();location.replace('./visor.html');},true);
+  }
+await new Promise((resolve,reject)=>{const script=document.createElement('script');script.onload=resolve;script.onerror=()=>reject(Error('No se pudo descargar el reproductor'));script.src=window.veterinariaPracticasPantalla && flatFiles['Delivery.loader.js'] || 'Build/Delivery.loader.js?v=pantalla-1';document.head.append(script);});
 createUnityInstance(view,{dataUrl:playerBuild('Delivery.data.unityweb'),frameworkUrl:playerBuild('Delivery.framework.js.unityweb'),codeUrl:playerBuild('Delivery.wasm.unityweb'),streamingAssetsUrl:'StreamingAssets',companyName:'OseoVr4',productName:'VeterinariaVR',productVersion:'4',cacheControl:practiceCache,devicePixelRatio:Math.min(devicePixelRatio,window.veterinariaPhone?1:matchMedia('(pointer:coarse)').matches?1.25:1.5)},n=>{const p=statusBox.querySelector('progress');if(p)p.value=n}).then(async instance=>{player=instance;view.focus();try{vr.hidden=!(await navigator.xr?.isSessionSupported('immersive-vr'))}catch{vr.hidden=true}}).catch(fail)
 })().catch(fail);
 </script><script src="clinical.js?v=pantalla-1"></script></body></html>
