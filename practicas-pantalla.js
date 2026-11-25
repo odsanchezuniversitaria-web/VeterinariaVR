@@ -1,7 +1,7 @@
 const guides = {
   '0ScenaMenu': ['Elegir una práctica', 'Elige un destino en Escenas. Puedes cambiar de práctica desde el mismo selector.', 'Elige una actividad en la lista vertical o abre Escenas si sostienes el teléfono en horizontal.'],
   '7ScenaMusculo': ['Explorar los músculos', 'Activa los modelos con los botones de la escena. Agarra una pieza para examinarla y usa Girar para ver otra cara.'],
-  '4ScenaBoxeo': ['Completar una ronda de boxeo', 'Haz clic en cada guante y pulsa Empezar. Apunta al hueso indicado con el ratón. Q golpea con la izquierda y E con la derecha. Los guantes vuelven al soporte al terminar.', 'Toca los dos guantes y pulsa Empezar. Toca un hueso para apuntar y usa Izquierda o Derecha para golpear.'],
+  '4ScenaBoxeo': ['Completar una ronda de boxeo', 'Haz clic en los guantes flotantes y pulsa Empezar. Usa los botones de giro para recorrer el círculo de huesos. Apunta al hueso indicado y golpea con Q o E. Al terminar, los guantes vuelven a sus campos.', 'Toca cada campo para ponerte el guante. Pulsa Empezar. Desliza a un lado o usa los botones de giro para buscar los huesos a tu alrededor. Toca el hueso y pulsa Izquierda o Derecha para golpear.'],
   '2ScenaCraneos': ['Comparar los cráneos', 'Abre los paneles de la escena y selecciona un cráneo para moverlo, ampliarlo o girarlo. Usa ↺ para recuperar su orientación.'],
   '1ScenaOseo': ['Examinar y devolver huesos', 'Selecciona un hueso y mantenlo agarrado para examinarlo. Acércalo a la marca de devolución y suelta cuando aparezca «Soltar aquí».'],
   '6ScenaTodoRuleta': ['Girar y responder', 'Pulsa Girar y luego Frenar. Cuando aparezca una pregunta, elige una de las respuestas que aparecen bajo los controles. La ronda consta de cuatro preguntas.'],
@@ -38,12 +38,41 @@ export function install(send) {
   #punteriaPantalla{position:fixed;inset:0;z-index:1;touch-action:none;user-select:none;cursor:crosshair}#punteriaPantalla span{display:none;position:absolute;width:26px;height:26px;border:2px solid white;box-shadow:0 0 0 2px #193d39;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
   #punteriaPantalla progress{position:absolute;bottom:26%;left:35%;width:30%;pointer-events:none;accent-color:#70dfbe}#punteriaPantalla[hidden],#practicaPantalla[hidden],html[data-mode=xr] #practicaPantalla,html[data-mode=xr] #punteriaPantalla{display:none}
   #respuestasRuleta:not(:empty){display:grid;gap:4px;flex-basis:100%;max-height:39vh;overflow:auto;padding:3px}#respuestasRuleta strong{font-size:15px}#respuestasRuleta button{text-align:left;color:#102d2b;background:#eaf7f2}#miraBoxeo{position:fixed;z-index:1;width:15px;height:15px;box-sizing:border-box;border:2px solid #8ffce5;border-radius:50%;box-shadow:0 0 0 1px #19252d;transform:translate(-50%,-50%);pointer-events:none}#miraBoxeo[hidden]{display:none}\n  html[data-mode=screen] #practicaPantalla[data-group=boxeo]{position:static;max-width:100%;padding:2px 0 0;background:none;border:0}#soltarPieza[hidden]{display:none} #practicaPantalla select{font-size:16px}
+  @media (max-height:510px) and (orientation:landscape){html[data-mode=screen] #boxing:has([data-group=boxeo]){box-sizing:border-box;max-width:calc(100vw - 24px);max-height:36vh;overflow-y:auto;padding:5px 9px}#boxing:has([data-group=boxeo]) h2,#boxing:has([data-group=boxeo]) p{margin:0}#boxing:has([data-group=boxeo]) .score{float:left;margin-right:9px}#boxing:has([data-group=boxeo]) output{clear:both}}
   @media(max-width:520px){#practicaPantalla select{max-width:55vw}#practicaPantalla{max-width:calc(100vw - 16px)}}
   `;
   document.head.append(css);
   const drop=document.createElement('button');drop.textContent='Soltar';drop.title='Soltar el objeto (R)';drop.hidden=true;drop.id='soltarPieza';el('help').before(drop);
   const hands=a=>{if(flat())send('ManosPantalla',a);};drop.onclick=()=>{endAim();hands('drop');};
   const sight=document.createElement('i');sight.id='miraBoxeo';sight.hidden=true;sight.setAttribute('aria-hidden','true');document.body.append(sight);
+  // During a round, tapping a bone must not also activate a Unity world-space menu behind it.
+  const ringInput=document.createElement('div');
+  ringInput.hidden=true;
+  ringInput.setAttribute('aria-label','Apuntar a los huesos');
+  ringInput.style.cssText='position:fixed;inset:0;z-index:1;touch-action:none;user-select:none;cursor:crosshair';
+  document.body.insertBefore(ringInput,sight);
+  let ringDrag=null;
+  ringInput.addEventListener('pointerdown',e=>{
+    if(ringDrag || e.button!==0)return;
+    e.preventDefault();e.stopPropagation();
+    ringDrag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};
+    ringInput.setPointerCapture(e.pointerId);
+  });
+  ringInput.addEventListener('pointermove',e=>{
+    e.stopPropagation();
+    if(!ringDrag){if(e.pointerType==='mouse')point(e);return;}
+    if(ringDrag.id!==e.pointerId)return;
+    const dx=e.clientX-ringDrag.x,threshold=Math.max(34,Math.min(78,view.clientWidth*.12));
+    if(Math.abs(dx)>=threshold){hands(dx<0?'turnRight':'turnLeft');ringDrag.x=e.clientX;ringDrag.moved=true;}
+    if(Math.abs(e.clientY-ringDrag.y)>16)ringDrag.moved=true;
+  });
+  ringInput.addEventListener('pointerup',e=>{
+    e.preventDefault();e.stopPropagation();
+    if(ringDrag?.id===e.pointerId && !ringDrag.moved)point(e,true);
+    ringDrag=null;
+  });
+  ringInput.addEventListener('pointercancel',()=>{ringDrag=null;});
+  ringInput.addEventListener('lostpointercapture',()=>{ringDrag=null;});
   let loaded=-1,lastAim='',boxState='',leftButton,rightButton,quizView,quizKey='',quizUnlock=0,spinWheel,brakeWheel;
   let scene='',currentGroup='',gesture=null,aimButton,roundButton,score,selection,playing=false,poll,handshake;
   const flat=()=>window.veterinariaPracticasPantalla && document.documentElement.dataset.mode==='screen' && !levels.disabled;
@@ -55,7 +84,7 @@ export function install(send) {
   }
   function dropGesture(){const last=gesture;gesture=null;mark.style.display='none';power.value=0;if(last && aim.hasPointerCapture(last.id))aim.releasePointerCapture(last.id);}
   function endAim(){if(gesture)hands('pull,0');dropGesture();aim.hidden=true;if(aimButton){aimButton.textContent='Apuntar';aimButton.setAttribute('aria-pressed','false');}}
-  function reset(){quizView=spinWheel=brakeWheel=null;quizKey='';quizUnlock=0;sight.hidden=true;boxState='';loaded=-1;drop.hidden=true;lastAim='';leftButton=rightButton=null;panel.removeAttribute('data-group');if(panel.parentNode!==document.body)document.body.append(panel);clearInterval(poll);clearInterval(handshake);currentGroup='';endAim();controls.replaceChildren();message.textContent='';panel.hidden=true;aimButton=roundButton=score=selection=null;playing=false;}
+  function reset(){ringInput.hidden=true;ringDrag=null;quizView=spinWheel=brakeWheel=null;quizKey='';quizUnlock=0;sight.hidden=true;boxState='';loaded=-1;drop.hidden=true;lastAim='';leftButton=rightButton=null;panel.removeAttribute('data-group');if(panel.parentNode!==document.body)document.body.append(panel);clearInterval(poll);clearInterval(handshake);currentGroup='';endAim();controls.replaceChildren();message.textContent='';panel.hidden=true;aimButton=roundButton=score=selection=null;playing=false;}
   function beginAim(){
     if(loaded<0)return;
     if(!aim.hidden){endAim();message.textContent='';return;}
@@ -82,7 +111,7 @@ export function install(send) {
   document.addEventListener('keydown',e=>{if(!aim.hidden && e.key==='Escape'){e.preventDefault();endAim();}});
   function group(name,choices){
     controls.replaceChildren();currentGroup=name;panel.hidden=!name;panel.dataset.group=name;
-    if(name==='boxeo'){el('boxing').append(panel);leftButton=button('Tomar izquierdo',()=>hands(leftButton.dataset.worn==='true'?'hitL':'equipL'));rightButton=button('Tomar derecho',()=>hands(rightButton.dataset.worn==='true'?'hitR':'equipR'));}
+    if(name==='boxeo'){ringInput.hidden=false;el('boxing').append(panel);leftButton=button('Tomar izquierdo',()=>hands(leftButton.dataset.worn==='true'?'hitL':'equipL'));rightButton=button('Tomar derecho',()=>hands(rightButton.dataset.worn==='true'?'hitR':'equipR'));button('Girar ←',()=>hands('turnLeft')).setAttribute('aria-label','Girar a la izquierda');button('Girar →',()=>hands('turnRight')).setAttribute('aria-label','Girar a la derecha');}
     if(name==='vaca' || name==='reflejo'){button('Vista de detalle',()=>hands('detail'));button('Vista inicial',()=>hands('overview'));}
     if(name==='ruleta'){spinWheel=button('Girar',()=>{quizKey='';quizView.replaceChildren();quizUnlock=Infinity;spinWheel.disabled=true;brakeWheel.disabled=false;command('spin');});brakeWheel=button('Frenar',()=>{brakeWheel.disabled=true;quizUnlock=performance.now()+12500;command('brake');});brakeWheel.disabled=true;quizView=document.createElement('div');quizView.id='respuestasRuleta';controls.append(quizView);poll=setInterval(()=>command('state'),350);}
     if(name==='vaca'){
@@ -130,11 +159,11 @@ export function install(send) {
   new MutationObserver(()=>{if(document.documentElement.dataset.mode==='xr')reset();else if(view.dataset.scene)enter(view.dataset.scene);})
     .observe(document.documentElement,{attributes:true,attributeFilter:['data-mode']});
   levels.addEventListener('change',reset);
-  function point(e){if(currentGroup!=='boxeo' || !flat())return;const b=view.getBoundingClientRect();sight.hidden=boxState!=='jugando';sight.style.left=e.clientX+'px';sight.style.top=e.clientY+'px';const a=(e.pointerType==='touch'&&e.type==='pointerdown'?'mark,':'aim,')+((e.clientX-b.x)/b.width).toFixed(3)+','+(1-(e.clientY-b.y)/b.height).toFixed(3);if(lastAim!==a || a.startsWith('mark,')){hands(a);lastAim=a;}}
+  function point(e,markTarget=false){if(currentGroup!=='boxeo' || !flat())return;const b=view.getBoundingClientRect();sight.hidden=boxState!=='jugando';sight.style.left=e.clientX+'px';sight.style.top=e.clientY+'px';const a=(markTarget || e.type==='pointerdown'?'mark,':'aim,')+((e.clientX-b.x)/b.width).toFixed(3)+','+(1-(e.clientY-b.y)/b.height).toFixed(3);if(lastAim!==a || a.startsWith('mark,')){hands(a);lastAim=a;}}
   view.addEventListener('pointermove',point);view.addEventListener('pointerdown',point);
   document.addEventListener('keydown',e=>{if(!flat() || e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.target.closest?.('input,textarea,select,[contenteditable=true]'))return;
     const k=e.code;if(k==='KeyR'){endAim();hands('drop');}else if(currentGroup==='boxeo' && (k==='KeyQ'||k==='KeyE')){hands(k==='KeyQ'?'hitL':'hitR');}else return;e.preventDefault();});
-  document.addEventListener('veterinaria-boxeo',({detail:s})=>{boxState=s.estado;if(boxState!=='jugando')sight.hidden=true;for(const b of [leftButton,rightButton])if(b)b.disabled=['fin','pausa','cuenta'].includes(boxState);if(['inicio','jugando'].includes(s.estado))el('boxingHint').textContent=s.estado==='inicio'?'Toma los dos guantes y pulsa Empezar.':matchMedia('(pointer:coarse)').matches?'Toca un hueso para marcarlo y pulsa Izquierda o Derecha.':'Apunta al hueso y golpea con Q o E.';});
+  document.addEventListener('veterinaria-boxeo',({detail:s})=>{boxState=s.estado;ringInput.hidden=!['inicio','cuenta','jugando','fin'].includes(boxState) || !flat();if(ringInput.hidden)ringDrag=null;if(boxState!=='jugando')sight.hidden=true;for(const b of [leftButton,rightButton])if(b)b.disabled=['fin','pausa','cuenta'].includes(boxState);if(['inicio','jugando'].includes(s.estado))el('boxingHint').textContent=s.estado==='inicio'?'Toca los guantes flotantes y pulsa Empezar.':matchMedia('(pointer:coarse)').matches?'Toca un hueso para marcarlo y pulsa Izquierda o Derecha.':'Apunta al hueso y golpea con Q o E.';});
   help.addEventListener('click',()=>{
     if(!flat() || help.getAttribute('aria-expanded')!=='true')return;
     const g=guides[view.dataset.scene];if(!g)return;
