@@ -1,7 +1,7 @@
 const guides = {
   '0ScenaMenu': ['Elegir una práctica', 'Elige un destino en Escenas. Puedes cambiar de práctica desde el mismo selector.', 'Elige una actividad en la lista vertical o abre Escenas si sostienes el teléfono en horizontal.'],
   '7ScenaMusculo': ['Explorar los músculos', 'Activa los modelos con los botones de la escena. Agarra una pieza para examinarla y usa Girar para ver otra cara.'],
-  '4ScenaBoxeo': ['Completar una ronda de boxeo', 'Haz clic en los guantes flotantes y pulsa Empezar. Arrastra sobre la escena o usa los botones de giro para recorrer el círculo de huesos. Apunta al hueso indicado y golpea con Q o E. Al terminar, los guantes vuelven a sus campos.', 'Toca cada campo para ponerte el guante. Pulsa Empezar. Desliza a un lado o usa los botones de giro para buscar los huesos a tu alrededor. Toca el hueso y pulsa Izquierda o Derecha para golpear.'],
+  '4ScenaBoxeo': ['Completar una ronda de boxeo', 'Haz clic en los guantes flotantes y pulsa Empezar. Arrastra para centrar el hueso en la mira. Haz clic para golpear con los guantes alternados. Al terminar, vuelven a sus campos.', 'Toca los guantes flotantes y pulsa Empezar. Desliza para centrar el hueso en la mira. Toca la escena para golpear con los guantes alternados.'],
   '2ScenaCraneos': ['Comparar los cráneos', 'Abre los paneles de la escena y selecciona un cráneo para moverlo, ampliarlo o girarlo. Usa ↺ para recuperar su orientación.'],
   '1ScenaOseo': ['Examinar y devolver huesos', 'Selecciona un hueso y mantenlo agarrado para examinarlo. Acércalo a la marca de devolución y suelta cuando aparezca «Soltar aquí».'],
   '6ScenaTodoRuleta': ['Girar y responder', 'Pulsa Girar y luego Frenar. Cuando aparezca una pregunta, elige una de las respuestas que aparecen bajo los controles. La ronda consta de cuatro preguntas.'],
@@ -18,6 +18,57 @@ const guides = {
   '9ScenaElementoP': ['Completar el equipo y clasificar residuos', 'Consulta el rol activo. Arrastra la prenda a la zona compatible del maniquí y clasifica los residuos en la caneca correspondiente. La escena registra errores, tiempo y racha.'],
   'EscenaPuente': ['Cambio de práctica', 'Esta sala se utiliza durante la carga. Selecciona un destino en Escenas si entraste directamente.']
 };
+
+const fichasEscena={ 
+  '1ScenaOseo':['Sistema óseo','Explora las piezas del esqueleto canino. Selecciona un hueso y abre de nuevo la información para ver su ficha.'],
+  '2ScenaCraneos':['Cráneos caninos','Compara la longitud y el ancho del cráneo. El braquicéfalo es corto y ancho, el mesocéfalo tiene proporciones intermedias y el dolicocéfalo es más alargado.'],
+  '5ScenaCerebro':['Encéfalo canino','En el modelo, distingue los hemisferios cerebrales del cerebelo. La corteza cerebral procesa estímulos y el cerebelo participa en el equilibrio y la coordinación del movimiento.'],
+  '7ScenaMusculo':['Sistema muscular canino','Gira el modelo para ver los músculos desde distintos ángulos. Observa qué articulaciones cruzan y cómo se relacionan con los huesos que mueven.'],
+  '13ScenaAnatomia':['Anatomía canina','Elige un sistema del selector para consultar su función junto al modelo.']
+};
+const fichasHuesos=[
+  [/tibia.*perone|perone/, 'Tibia y peroné', 'Son los huesos largos de la parte inferior del miembro posterior. La tibia soporta la mayor carga y el peroné es más delgado y lateral.'],
+  [/tibia/, 'Tibia', 'Está entre la rodilla y el corvejón. Se articula con el fémur por arriba y con el tarso por abajo.'],
+  [/lumbar|pelvis|cola/, 'Lumbares, pelvis y cola', 'El sacro conecta la columna con la pelvis. Las vértebras lumbares permiten flexionar el tronco y las caudales forman la cola.'],
+  [/vertebra/, 'Vértebras', 'Forman la columna vertebral, protegen la médula espinal y sirven de punto de unión para músculos y ligamentos.'],
+  [/costilla/, 'Costillas', 'Forman la caja torácica y ayudan a proteger el corazón y los pulmones. Se articulan con las vértebras torácicas.'],
+  [/mandibula/, 'Mandíbula', 'Sostiene los dientes inferiores y se articula con el cráneo en la articulación temporomandibular, que participa en la masticación.'],
+  [/craneo|^crane(?:$|[0-9])/, 'Cráneo', 'Protege el encéfalo y da forma a la cara. Entre sus huesos se encuentran el frontal, el maxilar y el occipital.'],
+  [/escapula|homoplato/, 'Escápula', 'Es el hueso plano del miembro anterior. Su cavidad glenoidea se articula con el húmero para formar el hombro.'],
+  [/radio|cubito/, 'Radio y cúbito', 'Son los huesos del antebrazo, entre el codo y el carpo. El olécranon del cúbito sirve de inserción al tríceps.'],
+  [/metacarpo|carpo|mano|falangescarpo/, 'Carpo, metacarpo y falanges', 'Forman parte del extremo del miembro anterior. El metacarpo conecta el carpo con los dedos y las falanges forman los dedos.'],
+  [/pata|tarso|metatarso/, 'Tarso, metatarso y falanges', 'Forman el extremo distal del miembro posterior. El tarso participa en el movimiento del corvejón y el metatarso conecta con los dedos.'],
+  [/femur/, 'Fémur', 'Es el hueso del muslo. Se articula con la pelvis en la cadera y con la tibia en la rodilla.']
+];
+const fichasSistemas={
+  piel:['Piel','Recubre el cuerpo y forma una barrera entre los tejidos y el ambiente.'],
+  muscular:['Sistema muscular','Los músculos esqueléticos mueven las articulaciones y ayudan a mantener la postura.'],
+  oseo:['Sistema óseo','Los huesos sostienen el cuerpo, protegen órganos y se unen en las articulaciones para permitir el movimiento.'],
+  linfatico:['Sistema linfático','Los vasos linfáticos recogen líquido de los tejidos. Los ganglios filtran la linfa y participan en la defensa del organismo.'],
+  digestivo:['Sistema digestivo','El tubo digestivo procesa los alimentos y absorbe nutrientes y agua.'],
+  nervioso:['Sistema nervioso','El encéfalo, la médula espinal y los nervios reciben información y coordinan las respuestas del cuerpo.'],
+  sistemacirculatorio:['Sistema circulatorio','El corazón impulsa la sangre por los vasos para transportar oxígeno y nutrientes.'],
+  corazon:['Corazón','Bombea sangre hacia los pulmones y hacia el resto del cuerpo.'],
+  cerebro:fichasEscena['5ScenaCerebro'],
+  ojo:['Ojo','La córnea y el cristalino enfocan la luz sobre la retina, donde se inicia la señal visual.']
+};
+function normalizarAnatomia(texto){
+  return (texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/[^a-z0-9]/g,'');
+}
+function fichaAnatomica(scene,piece,system){
+  if(scene==='13ScenaAnatomia')return fichasSistemas[normalizarAnatomia(system)]||fichasSistemas[normalizarAnatomia(piece)]||fichasEscena[scene];
+  const id=normalizarAnatomia(piece);
+  if(scene==='2ScenaCraneos'){
+    if(id.includes('braqui'))return ['Cráneo braquicéfalo','Tiene un cráneo corto y ancho, con huesos faciales acortados.'];
+    if(id.includes('meso'))return ['Cráneo mesocéfalo','Tiene una proporción intermedia entre la longitud y el ancho del cráneo.'];
+    if(id.includes('dolico'))return ['Cráneo dolicocéfalo','Su forma es más larga y estrecha que la de los otros tipos de cráneo de la escena.'];
+  }
+  if((scene==='1ScenaOseo'||scene==='2ScenaCraneos') && id){
+    const hit=fichasHuesos.find(([pattern])=>pattern.test(id));
+    if(hit && (scene==='1ScenaOseo'||hit[1]==='Mandíbula'))return hit.slice(1);
+  }
+  return fichasEscena[scene];
+}
 
 export function install(send) {
   const el = id => document.getElementById(id);
@@ -37,18 +88,72 @@ export function install(send) {
   #practicaPantalla>div{display:flex;align-items:center;gap:4px;flex-wrap:wrap}#practicaPantalla button,#practicaPantalla select{min-height:44px;max-width:100%}#practicaPantalla output:not(:empty){display:block;padding:4px 5px;font-size:14px}#practicaPantalla [aria-pressed=true]{background:#a2e2c6;color:#143532}
   #punteriaPantalla{position:fixed;inset:0;z-index:1;touch-action:none;user-select:none;cursor:crosshair}#punteriaPantalla span{display:none;position:absolute;width:26px;height:26px;border:2px solid white;box-shadow:0 0 0 2px #193d39;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
   #punteriaPantalla progress{position:absolute;bottom:26%;left:35%;width:30%;pointer-events:none;accent-color:#70dfbe}#punteriaPantalla[hidden],#practicaPantalla[hidden],html[data-mode=xr] #practicaPantalla,html[data-mode=xr] #punteriaPantalla{display:none}
-  #respuestasRuleta:not(:empty){display:grid;gap:4px;flex-basis:100%;max-height:39vh;overflow:auto;padding:3px}#respuestasRuleta strong{font-size:15px}#respuestasRuleta button{text-align:left;color:#102d2b;background:#eaf7f2}#miraBoxeo{position:fixed;z-index:1;width:15px;height:15px;box-sizing:border-box;border:2px solid #8ffce5;border-radius:50%;box-shadow:0 0 0 1px #19252d;transform:translate(-50%,-50%);pointer-events:none}#miraBoxeo[hidden]{display:none}\n  html[data-mode=screen] #practicaPantalla[data-group=boxeo]{position:static;max-width:100%;padding:2px 0 0;background:none;border:0}#soltarPieza[hidden]{display:none} #practicaPantalla select{font-size:16px}
+  #respuestasRuleta:not(:empty){display:grid;gap:4px;flex-basis:100%;max-height:39vh;overflow:auto;padding:3px}#respuestasRuleta strong{font-size:15px}#respuestasRuleta button{text-align:left;color:#102d2b;background:#eaf7f2} #miraBoxeo{position:fixed;z-index:1;left:50%;top:50%;width:15px;height:15px;box-sizing:border-box;border:2px solid #8ffce5;border-radius:50%;box-shadow:0 0 0 1px #19252d;transform:translate(-50%,-50%);pointer-events:none}#miraBoxeo[hidden]{display:none}\n  html[data-mode=screen] #practicaPantalla[data-group=boxeo]{position:static;max-width:100%;padding:2px 0 0;background:none;border:0}#soltarPieza[hidden]{display:none} #practicaPantalla select{font-size:16px}
   @media (max-height:510px) and (orientation:landscape){html[data-mode=screen] #boxing:has([data-group=boxeo]){box-sizing:border-box;max-width:calc(100vw - 24px);max-height:36vh;overflow-y:auto;padding:5px 9px}#boxing:has([data-group=boxeo]) h2,#boxing:has([data-group=boxeo]) p{margin:0}#boxing:has([data-group=boxeo]) .score{float:left;margin-right:9px}#boxing:has([data-group=boxeo]) output{clear:both}}
+  #infoAnatomia{min-width:44px;padding-inline:.6rem;font-size:1.25rem}
+  #fichaAnatomica{position:fixed;z-index:5;left:max(12px,env(safe-area-inset-left));top:max(70px,calc(env(safe-area-inset-top) + 65px));width:min(360px,calc(100vw - 24px));max-height:60vh;overflow:auto;box-sizing:border-box;padding:14px;background:#163939f5;color:#f1faf8;border:1px solid #759c90;border-radius:12px}
+  #fichaAnatomica[hidden],#infoAnatomia[hidden]{display:none}
+  #fichaAnatomica h2{margin:0 0 6px;font-size:18px}#fichaAnatomica p{margin:0 0 10px;line-height:1.45}
   @media(max-width:520px){#practicaPantalla select{max-width:55vw}#practicaPantalla{max-width:calc(100vw - 16px)}}
   `;
   document.head.append(css);
+  const infoButton=document.createElement('button');
+  infoButton.type='button';
+  infoButton.id='infoAnatomia';
+  infoButton.textContent='ⓘ';
+  infoButton.title='Información (I)';
+  infoButton.setAttribute('aria-label','Información anatómica');
+  infoButton.setAttribute('aria-controls','fichaAnatomica');
+  infoButton.setAttribute('aria-expanded','false');
+  infoButton.hidden=true;
+  help.before(infoButton);
+  const anatomyCard=document.createElement('section');
+  anatomyCard.id='fichaAnatomica';
+  anatomyCard.setAttribute('aria-labelledby','fichaAnatomicaTitulo');
+  anatomyCard.hidden=true;
+  const anatomyTitle=document.createElement('h2');
+  anatomyTitle.id='fichaAnatomicaTitulo';
+  const anatomyText=document.createElement('p');
+  const closeCard=document.createElement('button');
+  closeCard.type='button';
+  closeCard.textContent='Cerrar';
+  anatomyCard.append(anatomyTitle,anatomyText,closeCard);
+  document.body.append(anatomyCard);
+  let anatomyPiece='',anatomySystem='';
+  function updateAnatomyCard(){
+    const card=fichaAnatomica(scene,anatomyPiece,anatomySystem);
+    if(!card)return;
+    anatomyTitle.textContent=card[0];anatomyText.textContent=card[1];
+  }
+  function showAnatomyCard(open){
+    anatomyCard.hidden=!open;
+    infoButton.setAttribute('aria-expanded',String(open));
+    if(open)updateAnatomyCard();
+  }
+  function toggleAnatomyCard(){
+    if(infoButton.hidden || !flat())return;
+    if(help.getAttribute('aria-expanded')==='true')help.click();
+    showAnatomyCard(anatomyCard.hidden);
+  }
+  closeCard.onclick=()=>{showAnatomyCard(false);infoButton.focus({preventScroll:true});};
+  infoButton.onclick=toggleAnatomyCard;
+  document.addEventListener('veterinaria-inspection',({detail})=>{
+    anatomyPiece=detail.mode==='pieza'?detail.target:'';
+    if(!anatomyCard.hidden)updateAnatomyCard();
+  });
+  document.addEventListener('change',e=>{
+    if(scene!=='13ScenaAnatomia' || e.target.getAttribute('aria-label')!=='Sistema anatómico')return;
+    anatomySystem=e.target.value?e.target.selectedOptions[0]?.textContent:'';
+    if(!anatomyCard.hidden)updateAnatomyCard();
+  });
+
   const drop=document.createElement('button');drop.textContent='Soltar';drop.title='Soltar (F)';drop.hidden=true;drop.id='soltarPieza';el('help').before(drop);
   const hands=a=>{if(flat())send('ManosPantalla',a);};drop.onclick=releaseHeld;
   const sight=document.createElement('i');sight.id='miraBoxeo';sight.hidden=true;sight.setAttribute('aria-hidden','true');document.body.append(sight);
-  // During a round, tapping a bone must not also activate a Unity world-space menu behind it.
+  // A short press punches; a drag turns the camera without touching Unity panels behind the ring.
   const ringInput=document.createElement('div');
   ringInput.hidden=true;
-  ringInput.setAttribute('aria-label','Apuntar a los huesos');
+  ringInput.setAttribute('aria-label','Boxeo. Arrastra para apuntar y toca para golpear.');
   ringInput.style.cssText='position:fixed;inset:0;z-index:1;touch-action:none;user-select:none;cursor:crosshair';
   document.body.insertBefore(ringInput,sight);
   let ringDrag=null;
@@ -65,20 +170,24 @@ export function install(send) {
   });
   ringInput.addEventListener('pointermove',e=>{
     e.stopPropagation();
-    if(!ringDrag){if(e.pointerType==='mouse')point(e);return;}
-    if(ringDrag.id!==e.pointerId)return;
+    if(ringDrag?.id!==e.pointerId)return;
     if(Math.hypot(e.clientX-ringDrag.x,e.clientY-ringDrag.y)>7)ringDrag.moved=true;
-    if(ringDrag.moved){lookBy(e.clientX-ringDrag.lastX,e.clientY-ringDrag.lastY,view.clientHeight);sight.hidden=true;}
+    if(ringDrag.moved)lookBy(e.clientX-ringDrag.lastX,e.clientY-ringDrag.lastY,view.clientHeight);
     ringDrag.lastX=e.clientX;ringDrag.lastY=e.clientY;
   });
   ringInput.addEventListener('pointerup',e=>{
     e.preventDefault();e.stopPropagation();
-    if(ringDrag?.id===e.pointerId && !ringDrag.moved)point(e,true);
+    if(ringDrag?.id===e.pointerId && !ringDrag.moved){
+      const b=view.getBoundingClientRect();
+      const x=((e.clientX-b.x)/b.width).toFixed(4);
+      const y=(1-(e.clientY-b.y)/b.height).toFixed(4);
+      hands('boxingTap,'+x+','+y);
+    }
     ringDrag=null;
   });
   ringInput.addEventListener('pointercancel',()=>{ringDrag=null;});
   ringInput.addEventListener('lostpointercapture',()=>{ringDrag=null;});
-  let loaded=-1,lastAim='',boxState='',leftButton,rightButton,quizView,quizKey='',quizUnlock=0,spinWheel,brakeWheel;
+  let loaded=-1,boxState='',leftButton,rightButton,punchButton,hasGlove=false,quizView,quizKey='',quizUnlock=0,spinWheel,brakeWheel;
   let scene='',currentGroup='',gesture=null,equipButton,roundButton,score,equipped=false,lastTap=null,poll,handshake;
   let launcherPoint, tableTap;
   view.addEventListener('pointerdown',e=>{
@@ -117,9 +226,10 @@ export function install(send) {
     hands('drop');
   }
   function reset(){
+    infoButton.hidden=true;showAnatomyCard(false);anatomyPiece=anatomySystem='';
     ringInput.hidden=true;ringDrag=null;quizView=spinWheel=brakeWheel=null;quizKey='';quizUnlock=0;
     sight.hidden=true;boxState='';loaded=-1;equipped=false;launcherPoint=tableTap=null;lastTap=null;aim.hidden=true;drop.hidden=true;
-    lastAim='';leftButton=rightButton=null;panel.removeAttribute('data-group');
+    hasGlove=false;leftButton=rightButton=punchButton=null;panel.removeAttribute('data-group');
     if(panel.parentNode!==document.body)document.body.append(panel);
     clearInterval(poll);clearInterval(handshake);currentGroup='';endAim();controls.replaceChildren();
     message.textContent='';panel.hidden=true;equipButton=roundButton=score=null;
@@ -175,7 +285,16 @@ export function install(send) {
   document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelPointer();});
   function group(name,choices){
     controls.replaceChildren();currentGroup=name;panel.hidden=!name;panel.dataset.group=name;
-    if(name==='boxeo'){ringInput.hidden=false;el('boxing').append(panel);leftButton=button('Tomar izquierdo',()=>hands(leftButton.dataset.worn==='true'?'hitL':'equipL'));rightButton=button('Tomar derecho',()=>hands(rightButton.dataset.worn==='true'?'hitR':'equipR'));button('Girar ←',()=>hands('turnLeft')).setAttribute('aria-label','Girar a la izquierda');button('Girar →',()=>hands('turnRight')).setAttribute('aria-label','Girar a la derecha');}
+    if(name==='boxeo'){
+      ringInput.hidden=false;
+      el('boxing').append(panel);
+      leftButton=button('Tomar izquierdo',()=>hands('equipL'));
+      rightButton=button('Tomar derecho',()=>hands('equipR'));
+      punchButton=button('Golpear',()=>hands('punch'));
+      punchButton.hidden=true;
+      button('Girar ←',()=>hands('turnLeft')).setAttribute('aria-label','Girar a la izquierda');
+      button('Girar →',()=>hands('turnRight')).setAttribute('aria-label','Girar a la derecha');
+    }
     if(name==='vaca' || name==='reflejo'){button('Vista de detalle',()=>hands('detail'));button('Vista inicial',()=>hands('overview'));}
     if(name==='ruleta'){spinWheel=button('Girar',()=>{quizKey='';quizView.replaceChildren();quizUnlock=Infinity;spinWheel.disabled=true;brakeWheel.disabled=false;command('spin');});brakeWheel=button('Frenar',()=>{brakeWheel.disabled=true;quizUnlock=performance.now()+12500;command('brake');});brakeWheel.disabled=true;quizView=document.createElement('div');quizView.id='respuestasRuleta';controls.append(quizView);poll=setInterval(()=>command('state'),350);}
     if(name==='vaca'){
@@ -198,7 +317,12 @@ export function install(send) {
     drop.hidden=!s.held && !s.launcherEquipped;
     drop.textContent=s.launcherEquipped?'Soltar resortera':'Soltar';
     if(s.message==='Nilo · guía'){if(help.getAttribute('aria-expanded')!=='true')help.click();return;}
-    if(currentGroup==='boxeo' && leftButton){for(const [b,isWorn,side,hit] of [[leftButton,s.leftGlove,'izquierdo','Izquierda · Q'],[rightButton,s.rightGlove,'derecho','Derecha · E']]){b.dataset.worn=String(isWorn);b.textContent=isWorn?(matchMedia('(pointer:coarse)').matches?hit.split(' · ')[0]:hit):'Tomar '+side;}}
+    if(currentGroup==='boxeo' && leftButton){
+      leftButton.hidden=s.leftGlove;
+      rightButton.hidden=s.rightGlove;
+      hasGlove=s.leftGlove || s.rightGlove;
+      displayCenterPunch();
+    }
     if(currentGroup==='resortera'){
       launcherPoint=s.launcherPoint;
       equipped=!!s.launcherEquipped;
@@ -220,6 +344,7 @@ export function install(send) {
   function enter(id){
     reset();scene=id;
     if(!flat())return;
+    infoButton.hidden=!fichasEscena[scene];
     if(scene==='10ScenaReflejoPerro'){group('reflejo',[]);return;}
     if(scene==='17ScenaVacaItis'){group('laminitis',[]);return;}
     if(!['4ScenaBoxeo','6ScenaTodoRuleta','11ScenaVaca','13ScenaAnatomia','escena resortera','3ScenaResortera'].includes(scene))return;
@@ -230,14 +355,32 @@ export function install(send) {
   new MutationObserver(()=>{if(document.documentElement.dataset.mode==='xr')reset();else if(view.dataset.scene)enter(view.dataset.scene);})
     .observe(document.documentElement,{attributes:true,attributeFilter:['data-mode']});
   levels.addEventListener('change',reset);
-  function point(e,markTarget=false){if(currentGroup!=='boxeo' || !flat())return;const b=view.getBoundingClientRect();sight.hidden=boxState!=='jugando';sight.style.left=e.clientX+'px';sight.style.top=e.clientY+'px';const a=(markTarget || e.type==='pointerdown'?'mark,':'aim,')+((e.clientX-b.x)/b.width).toFixed(3)+','+(1-(e.clientY-b.y)/b.height).toFixed(3);if(lastAim!==a || a.startsWith('mark,')){hands(a);lastAim=a;}}
-  view.addEventListener('pointermove',point);view.addEventListener('pointerdown',point);
-  document.addEventListener('keydown',e=>{if(!flat() || e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.target.closest?.('input,textarea,select,[contenteditable=true]'))return;
-    const k=e.code;if(k==='KeyF' || k==='KeyR' || k==='Escape'){releaseHeld();}
+  document.addEventListener('keydown',e=>{if(!flat() || e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.target.closest?.('input,textarea,[contenteditable=true]'))return;
+    const k=e.code;
+    if(k==='KeyI' && !infoButton.hidden){toggleAnatomyCard();}
+    else if(k==='Escape' && !anatomyCard.hidden){showAnatomyCard(false);}
+    else if(e.target.closest?.('select'))return;
+    else if(k==='KeyF' || k==='KeyR' || k==='Escape'){releaseHeld();}
     else if(k==='ArrowLeft' || k==='ArrowRight'){e.stopImmediatePropagation();hands(k==='ArrowLeft'?'look,-12,0':'look,12,0');}
-    else if(currentGroup==='boxeo' && (k==='KeyQ'||k==='KeyE')){hands(k==='KeyQ'?'hitL':'hitR');}else return;e.preventDefault();},{capture:true});
-  document.addEventListener('veterinaria-boxeo',({detail:s})=>{boxState=s.estado;ringInput.hidden=!['inicio','cuenta','jugando','fin'].includes(boxState) || !flat();if(ringInput.hidden)ringDrag=null;if(boxState!=='jugando')sight.hidden=true;for(const b of [leftButton,rightButton])if(b)b.disabled=['fin','pausa','cuenta'].includes(boxState);if(['inicio','jugando'].includes(s.estado))el('boxingHint').textContent=s.estado==='inicio'?'Toca los guantes flotantes y pulsa Empezar.':matchMedia('(pointer:coarse)').matches?'Toca un hueso para marcarlo y pulsa Izquierda o Derecha.':'Apunta al hueso y golpea con Q o E.';});
+    else return;e.preventDefault();},{capture:true});
+  function displayCenterPunch(){
+    const ready=currentGroup==='boxeo' && boxState==='jugando' && hasGlove && flat();
+    sight.hidden=!ready;
+    if(punchButton)punchButton.hidden=!ready;
+  }
+  document.addEventListener('veterinaria-boxeo',({detail:s})=>{
+    boxState=s.estado;
+    ringInput.hidden=!['inicio','cuenta','jugando','fin'].includes(boxState) || !flat();
+    if(ringInput.hidden)ringDrag=null;
+    for(const b of [leftButton,rightButton])if(b)b.disabled=['fin','pausa','cuenta'].includes(boxState);
+    displayCenterPunch();
+    if(boxState==='inicio')el('boxingHint').textContent='Toma los guantes flotantes y pulsa Empezar.';
+    if(boxState==='jugando')el('boxingHint').textContent=matchMedia('(pointer:coarse)').matches
+      ?'Desliza para centrar el hueso. Toca para golpear.'
+      :'Arrastra para centrar el hueso. Haz clic para golpear.';
+  });
   help.addEventListener('click',()=>{
+    if(help.getAttribute('aria-expanded')==='true')showAnatomyCard(false);
     if(!flat() || help.getAttribute('aria-expanded')!=='true')return;
     const g=guides[view.dataset.scene];if(!g)return;
     const box=el('status'),h=box.querySelector('h2'),p=document.createElement('p');
