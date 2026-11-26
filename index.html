@@ -294,7 +294,7 @@ function practiceCache(url){
   if(window.veterinariaPhone && resource.origin===location.origin && resource.pathname.includes('/Content/') && /^[a-f0-9]{32}$/i.test(resource.searchParams.get('v')||''))return 'immutable';
   return /\.data(?:\.|$)|\.bundle(?:\.|$)/.test(resource.pathname)?'must-revalidate':'no-store';
 }
-const flatFiles={"Delivery.data.unityweb":"BuildPantalla/Delivery.data.unityweb?v=3d60f7af6ca1","Delivery.wasm.unityweb":"BuildPantalla/Delivery.wasm.unityweb?v=95e60218011e","Delivery.framework.js.unityweb":"BuildPantalla/Delivery.framework.js.unityweb?v=b5de88913fa0","Delivery.loader.js":"BuildPantalla/Delivery.loader.js?v=6f788c8a8ef7"};
+const flatFiles={"Delivery.data.unityweb":"BuildPantalla/Delivery.data.unityweb?v=119df784f368","Delivery.wasm.unityweb":"BuildPantalla/Delivery.wasm.unityweb?v=65dfdc1eedba","Delivery.framework.js.unityweb":"BuildPantalla/Delivery.framework.js.unityweb?v=b5de88913fa0","Delivery.loader.js":"BuildPantalla/Delivery.loader.js?v=befe297aa14c"};
 const playerBuild=file=>window.veterinariaPracticasPantalla && flatFiles[file] || 'Build/'+file+'?v=movil-2';
 (async()=>{
   let immersive=false;
@@ -302,7 +302,7 @@ const playerBuild=file=>window.veterinariaPracticasPantalla && flatFiles[file] |
   window.veterinariaPhone=matchMedia('(pointer:coarse)').matches && !immersive && !/Oculus|Quest|Wolvic|PicoBrowser|Mobile VR|Vive Focus/i.test(navigator.userAgent);
 
   if(!immersive && !/Oculus|Quest|Wolvic|PicoBrowser|Mobile VR|Vive Focus/i.test(navigator.userAgent)){
-    const practice=await import('./practicas-pantalla.js?v=121b6af9e540');
+    const practice=await import('./practicas-pantalla.js?v=266fbc4984ae');
     window.veterinariaPracticasPantalla=true;
     practice.install((method,value)=>player?.SendMessage('VeterinariaWeb',method,value));
     vr.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();location.replace('./visor.html');},true);

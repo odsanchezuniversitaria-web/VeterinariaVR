@@ -29,7 +29,7 @@ export function install(send) {
   const aim=document.createElement('div');aim.id='punteriaPantalla';aim.hidden=true;aim.tabIndex=0;
   aim.setAttribute('aria-label','Apuntar. Arrastra hacia abajo y suelta. F o doble toque devuelve la resortera.');
   const mark=document.createElement('span'),power=document.createElement('progress');
-  mark.setAttribute('aria-hidden','true');power.max=100;power.value=0;power.setAttribute('aria-label','Intensidad del lanzamiento');
+  mark.setAttribute('aria-hidden','true');power.hidden=true;power.max=100;power.value=0;power.setAttribute('aria-label','Intensidad del lanzamiento');
   aim.append(mark,power);document.body.append(aim,panel);
   const css=document.createElement('style');
   css.textContent=`
@@ -104,6 +104,7 @@ export function install(send) {
     gesture=null;
     mark.style.display='none';
     power.value=0;
+    power.hidden=true;
     if(last && aim.hasPointerCapture(last.id))aim.releasePointerCapture(last.id);
   }
   function endAim(){
@@ -142,6 +143,7 @@ export function install(send) {
     }
     if(g.mode==='launch'){
       const f=strength(e.clientY,g);
+      power.hidden=false;
       power.value=f*100;
       hands('pull,'+f.toFixed(3));
     }else if(g.mode==='look')lookBy(e.clientX-g.lastX,e.clientY-g.lastY,g.r.height);
