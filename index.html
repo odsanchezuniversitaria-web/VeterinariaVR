@@ -294,7 +294,7 @@ function practiceCache(url){
   if(window.veterinariaPhone && resource.origin===location.origin && resource.pathname.includes('/Content/') && /^[a-f0-9]{32}$/i.test(resource.searchParams.get('v')||''))return 'immutable';
   return /\.data(?:\.|$)|\.bundle(?:\.|$)/.test(resource.pathname)?'must-revalidate':'no-store';
 }
-const flatFiles={"Delivery.data.unityweb":"BuildPantalla/Delivery.data.unityweb?v=119df784f368","Delivery.wasm.unityweb":"BuildPantalla/Delivery.wasm.unityweb?v=65dfdc1eedba","Delivery.framework.js.unityweb":"BuildPantalla/Delivery.framework.js.unityweb?v=b5de88913fa0","Delivery.loader.js":"BuildPantalla/Delivery.loader.js?v=befe297aa14c"};
+const flatFiles={"Delivery.data.unityweb":"BuildPantalla/Delivery.data.unityweb?v=1377b5af598b","Delivery.wasm.unityweb":"BuildPantalla/Delivery.wasm.unityweb?v=6bccedbc994f","Delivery.framework.js.unityweb":"BuildPantalla/Delivery.framework.js.unityweb?v=54c01391b4bc","Delivery.loader.js":"BuildPantalla/Delivery.loader.js?v=4af0f75b9286"};
 const playerBuild=file=>window.veterinariaPracticasPantalla && flatFiles[file] || 'Build/'+file+'?v=movil-2';
 (async()=>{
   let immersive=false;
